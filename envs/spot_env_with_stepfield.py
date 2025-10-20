@@ -35,11 +35,11 @@ class SpotStepfieldEnv:
             terrain_cfg
         )
 
-        attach_payload_to_robot(
-            robot_body_path="/World/envs/env_0/Robot/body",
-            payload_path="/World/envs/env_0/Cube",
-            local_offset=(0.0, 0.0, 0.14343)
-        )
+        # attach_payload_to_robot(
+        #     robot_body_path="/World/envs/env_0/Robot/body",
+        #     payload_path="/World/envs/env_0/Cube",
+        #     local_offset=(0.0, 0.0, 0.14343)
+        # )
         
         # Create environment
         self.env = RslRlVecEnvWrapper(ManagerBasedRLEnv(cfg=env_cfg))

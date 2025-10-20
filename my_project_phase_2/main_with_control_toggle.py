@@ -62,7 +62,7 @@ from envs import SpotRoughEnvTestCfg_PLAY
 # Constants
 TASK = "Isaac-Velocity-Rough-Spot-v0"
 RL_LIBRARY = "rsl_rl"
-CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_flat/2025-08-27_11-21-29/exported/policy.pt"
+CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
 
 
 def create_waypoints():
@@ -110,7 +110,7 @@ def run_keyboard_control(demo):
                 
                 # Get keyboard command
                 keyboard_command = keyboard.get_command()
-                obs[:, 196:199] = keyboard_command
+                obs[:, 9:12] = keyboard_command
                 
     finally:
         keyboard.cleanup()
@@ -175,7 +175,7 @@ def run_waypoint_control(demo):
 
             # Update commands
             demo.commands = torch.from_numpy(base_command).unsqueeze(0).to(demo.device)
-            obs[:, 196:199] = demo.commands
+            obs[:, 9:12] = demo.commands
             count += 1
 
         # Print status periodically
