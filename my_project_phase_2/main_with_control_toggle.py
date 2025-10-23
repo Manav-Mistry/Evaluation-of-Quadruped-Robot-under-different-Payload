@@ -57,7 +57,7 @@ from my_utils import FLAT_TERRAIN_CFG
 from my_utils import KeyboardController
 
 from envs import SpotStepfieldEnv
-from envs import SpotRoughEnvTestCfg_PLAY
+from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY
 
 # Constants
 TASK = "Isaac-Velocity-Rough-Spot-v0"
@@ -195,7 +195,7 @@ def main():
     # Initialize demo
     print("Initializing Spot environment...")
     demo = SpotStepfieldEnv(
-        env_cfg_class=SpotRoughEnvTestCfg_PLAY,
+        env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
         checkpoint_path=CHECKPOINT_PATH,
         terrain_cfg=FLAT_TERRAIN_CFG
     )
