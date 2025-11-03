@@ -3,7 +3,7 @@
 from .waypoint_follower import WaypointTrajectoryFollower
 from .terrain_configs import FLAT_TERRAIN_CFG
 from .camera_utils import ThirdPersonCamera
-from .physics_utils import attach_payload_to_robot
+from .physics_utils import attach_payload_to_robot, update_payload_position
 from .keyboard_controller import KeyboardController
 from .progress_based_waypointFollower import ProgressBasedWaypointFollower
 from .waypoint_library import (

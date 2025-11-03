@@ -24,3 +24,21 @@ def attach_payload_to_robot(robot_body_path, payload_path, local_offset=(0.0, 0.
     
     # Set local transform
     fixed_joint.CreateLocalPos0Attr().Set(Gf.Vec3f(*local_offset))
+
+
+def update_payload_position(new_offset=(0.1, 0.1, 0.3)):
+    """
+    Update the payload position by modifying the fixed joint's local transform.
+    
+    Args:
+        new_offset: New local position offset as (x, y, z) tuple
+    """
+    stage = get_current_stage()
+    fixed_joint_prim = stage.GetPrimAtPath("/World/FixedJoint")
+    
+    if fixed_joint_prim.IsValid():
+        fixed_joint = UsdPhysics.FixedJoint(fixed_joint_prim)
+        fixed_joint.CreateLocalPos0Attr().Set(Gf.Vec3f(*new_offset))
+        print(f"Updated payload position to: {new_offset}")
+    else:
+        print("Fixed joint not found!")

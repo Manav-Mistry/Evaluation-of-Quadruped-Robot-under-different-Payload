@@ -352,3 +352,7 @@ class SpotRoughEnvTestCfg_PLAY(SpotRoughEnvCfg):
         # disable randomization for play
         self.observations.policy.enable_corruption = False
         # remove random pushing event
+        self.events.reset_robot_joints = None
+        self.events.base_external_force_torque = None
+        self.events.push_robot = None
+        self.events.reset_base = None

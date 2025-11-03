@@ -35,11 +35,11 @@ class SpotStepfieldEnv:
             terrain_cfg
         )
 
-        # attach_payload_to_robot(
-        #     robot_body_path="/World/envs/env_0/Robot/body",
-        #     payload_path="/World/envs/env_0/Cube",
-        #     local_offset=(0.0, 0.0, 0.14343)
-        # )
+        attach_payload_to_robot(
+            robot_body_path="/World/envs/env_0/Robot/body",
+            payload_path="/World/envs/env_0/Cube",
+            local_offset=(0.0, 0.0, 0.14343)
+        )
         
         # Create environment
         self.env = RslRlVecEnvWrapper(ManagerBasedRLEnv(cfg=env_cfg))
@@ -88,7 +88,7 @@ class SpotStepfieldEnv:
         env_cfg.episode_length_s = 1000000
         env_cfg.curriculum = None
 
-        env_cfg.commands.base_velocity.ranges.lin_vel_x = (0.0, 5.2)
+        env_cfg.commands.base_velocity.ranges.lin_vel_x = (-2, 5.2)
         env_cfg.commands.base_velocity.ranges.heading = (-1.0, 1.0)
 
         env_cfg.scene.payload = cube_cfg
@@ -112,20 +112,30 @@ class SpotStepfieldEnv:
             ),
             debug_vis=False,
         )
+        
+        # Spawn Test Ramps without Rigidbody
+        # env_cfg.scene.custom_ramp = AssetBaseCfg(
+        #     prim_path="{ENV_REGEX_NS}/CustomRamp",
+        #     spawn=sim_utils.UsdFileCfg(
+        #         usd_path="/home/manav/Desktop/Test course 3D models/continous_ramps/continous_ramps_with_only_colliders.usd",
+        #         scale=(1.0, 1.0, 1.0),    
+        #     ),
+        # )
 
-        env_cfg.scene.custom_ramp = AssetBaseCfg(
-            prim_path="/World/CustomRamp",
+        # Spawn Test Ramps with Rigidbody
+        env_cfg.scene.custom_ramp = RigidObjectCfg(
+            prim_path="{ENV_REGEX_NS}/CustomRamp",
             spawn=sim_utils.UsdFileCfg(
                 usd_path="/home/manav/Desktop/Test course 3D models/continous_ramps/continuous_ramps_new_test.usd",
                 scale=(1.0, 1.0, 1.0),
             ),
         )
-
+        
         env_cfg.scene.robot.init_state.pos = (-2, 0.0, 0.5)
         env_cfg.scene.robot.init_state.rot = (1.0, 0.0, 0.0, 0.0)
         
         return env_cfg
-    
+
     def update_camera(self):
         """Update camera to follow the robot."""
         robot = self.env.unwrapped.scene["robot"]

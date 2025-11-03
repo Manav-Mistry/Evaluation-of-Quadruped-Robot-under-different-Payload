@@ -20,9 +20,6 @@ import sys
 import numpy as np
 import torch
 
-import h5py
-from datetime import datetime
-
 sys.path.append( "/home/manav/IsaacLab/")
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -59,8 +56,6 @@ from my_utils import WaypointTrajectoryFollower
 from my_utils import FLAT_TERRAIN_CFG
 from my_utils import KeyboardController
 
-from hdf5_logger_utils import HDF5Logger
-
 from envs import SpotStepfieldEnv, SpotRoughDemo
 from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY
 
@@ -68,15 +63,6 @@ from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY
 TASK = "Isaac-Velocity-Rough-Spot-v0"
 RL_LIBRARY = "rsl_rl"
 CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
-
-
-# HDF5 Logging Configuration
-HDF5_CONFIG = {
-    'enabled': True,  # Toggle logging on/off
-    'buffer_size': 100,  # Write every 100 timesteps
-    'save_dir': '/home/manav/IsaacLab/logged_data',
-    'experiment_prefix': 'spot_demo'
-}
 
 
 def create_waypoints():
@@ -114,36 +100,20 @@ def run_keyboard_control(demo):
     
     print("Starting keyboard control... Press CTRL+C to exit.\n")
     
-    with HDF5Logger(
-        config=HDF5_CONFIG,
-        control_mode='keyboard',
-        num_envs=1
-    ) as logger:
-        try:
-            count=0
-            while simulation_app.is_running() and count < 1000:
-                robot_pos = demo.env.unwrapped.scene["robot"].data.root_pos_w[0, :3]
-                demo.update_camera()
+    try:
+        while simulation_app.is_running():
+            demo.update_camera()
+            
+            with torch.inference_mode():
+                action = demo.policy(obs)
+                obs, _, _, _ = demo.env.step(action)
                 
-                with torch.inference_mode():
-                    action = demo.policy(obs)
-                    obs, _, _, _ = demo.env.step(action)
-
-                    if count % 10 == 0:
-                        logger.log_timestep(
-                            timestep=count,
-                            robot_pos=robot_pos.cpu().numpy()
-                        )
-                    
-                    # Get keyboard command
-                    keyboard_command = keyboard.get_command()
-                    obs[:, 9:12] = keyboard_command
+                # Get keyboard command
+                keyboard_command = keyboard.get_command()
+                obs[:, 9:12] = keyboard_command
                 
-                count+=1
-                    
-        finally:
-            # logger.close()
-            keyboard.cleanup()
+    finally:
+        keyboard.cleanup()
 
 
 def run_waypoint_control(demo):
