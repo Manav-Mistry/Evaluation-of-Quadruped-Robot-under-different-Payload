@@ -23,15 +23,7 @@ class SpotRoughDemo:
     """Interactive demo for Spot robot with terrain navigation."""
     
     def __init__(self, env_cfg_class, checkpoint_path, terrain_cfg):
-        """
-        Initialize the demo environment.
-        
-        Args:
-            env_cfg_class: Environment configuration class
-            checkpoint_path: Path to the trained policy checkpoint
-            terrain_cfg: Terrain configuration object
-        """
-        # Create payload configuration
+      
         cube_cfg = self._create_payload_config()
         
         # Setup environment configuration
@@ -42,11 +34,13 @@ class SpotRoughDemo:
         )
         
         # Attach payload to robot
-        attach_payload_to_robot(
-            robot_body_path="/World/envs/env_0/Robot/body",
-            payload_path="/World/envs/env_0/Cube",
-            local_offset=(0.0, 0.0, 0.14343)
-        )
+        for env_idx in range(env_cfg.scene.num_envs):
+            attach_payload_to_robot(
+                robot_body_path=f"/World/envs/env_{env_idx}/Robot/body",
+                payload_path=f"/World/envs/env_{env_idx}/Cube",
+                env_idx= env_idx,
+                local_offset=(0.0, 0.4, 0.14343),
+            )
         
         # Create environment
         self.env = RslRlVecEnvWrapper(ManagerBasedRLEnv(cfg=env_cfg))
@@ -92,7 +86,7 @@ class SpotRoughDemo:
         env_cfg.curriculum = None
         
         # Command ranges
-        env_cfg.commands.base_velocity.ranges.lin_vel_x = (0.0, 5.2)
+        env_cfg.commands.base_velocity.ranges.lin_vel_x = (-2, 5.2)
         env_cfg.commands.base_velocity.ranges.heading = (-1.0, 1.0)
         
         # Add payload
@@ -120,7 +114,7 @@ class SpotRoughDemo:
         )
         
         # Robot initial state
-        env_cfg.scene.robot.init_state.pos = (0.0, 0.0, 0.5)
+        env_cfg.scene.robot.init_state.pos = (-2, 0.0, 0.5)
         env_cfg.scene.robot.init_state.rot = (1.0, 0.0, 0.0, 0.0)
         
         return env_cfg

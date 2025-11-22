@@ -154,6 +154,8 @@ def run_waypoint_control(demo):
         
         # Get robot position BEFORE stepping
         robot_pos = demo.env.unwrapped.scene["robot"].data.root_pos_w[0, :3]
+        robot_root_com = demo.env.unwrapped.scene["robot"].data.root_com_pose_w[0, :3]
+
 
         with torch.inference_mode():
             action = demo.policy(obs)
@@ -179,11 +181,10 @@ def run_waypoint_control(demo):
             count += 1
 
         # Print status periodically
-        if count % 50 == 0:
+        if count % 25 == 0:
             print("-------------------------------------------------------")
             print(f"Robot position: x={position[0]:.3f}, y={position[1]:.3f}, z={position[2]:.3f}")
-            print(f"Error: {error}")
-            print(f"Command: {base_command}")
+            print(f"Robot COM: {robot_root_com}")
             print("-------------------------------------------------------")
 
 
@@ -194,17 +195,17 @@ def main():
     
     # Initialize demo
     print("Initializing Spot environment...")
-    demo = SpotStepfieldEnv(
-        env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
-        checkpoint_path=CHECKPOINT_PATH,
-        terrain_cfg=FLAT_TERRAIN_CFG
-    )
-
-    # demo = SpotRoughDemo(
-    #     env_cfg_class=SpotRoughEnvTestCfg_PLAY,
+    # demo = SpotStepfieldEnv(
+    #     env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
     #     checkpoint_path=CHECKPOINT_PATH,
     #     terrain_cfg=FLAT_TERRAIN_CFG
     # )
+
+    demo = SpotRoughDemo(
+        env_cfg_class=SpotRoughEnvTestCfg_PLAY,
+        checkpoint_path=CHECKPOINT_PATH,
+        terrain_cfg=FLAT_TERRAIN_CFG
+    )
 
     
     print("Environment initialized successfully!\n")

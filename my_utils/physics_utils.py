@@ -4,7 +4,7 @@
 from pxr import Gf, UsdPhysics
 from isaacsim.core.utils.stage import get_current_stage
 
-def attach_payload_to_robot(robot_body_path, payload_path, local_offset=(0.0, 0.0, 0.14343)):
+def attach_payload_to_robot(robot_body_path, payload_path, env_idx, local_offset=(0.0, 0.0, 0.14343)):
     """
     Attach a payload object to the robot using a fixed joint.
     
@@ -15,8 +15,8 @@ def attach_payload_to_robot(robot_body_path, payload_path, local_offset=(0.0, 0.
     """
     stage = get_current_stage()
     
-    # Create fixed joint
-    fixed_joint = UsdPhysics.FixedJoint.Define(stage, "/World/FixedJoint")
+    # Create fixed joint /World/envs/env_0/Robot/body or /World/FixedJoint 
+    fixed_joint = UsdPhysics.FixedJoint.Define(stage, f"/World/envs/env_{env_idx}/FixedJoint")
     
     # Set body relationships
     fixed_joint.CreateBody0Rel().SetTargets([robot_body_path])

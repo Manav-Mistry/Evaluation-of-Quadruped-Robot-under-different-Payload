@@ -72,25 +72,74 @@ CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-
 
 # HDF5 Logging Configuration
 HDF5_CONFIG = {
-    'enabled': True,  # Toggle logging on/off
+    'enabled': False,  # Toggle logging on/off
     'buffer_size': 100,  # Write every 100 timesteps
     'save_dir': '/home/manav/IsaacLab/logged_data',
     'experiment_prefix': 'spot_demo'
 }
 
-
+# Example usage:
 def create_waypoints():
-    """Define the waypoint trajectory for the robot to follow."""
-    return [
-        [0, 0, 0],
-        [2, 0, 0],
-        [2, 0, np.pi/2],
-        [2, 2, np.pi/2],
-        [2, 2, np.pi],
-        [0, 2, np.pi],
-        [0, 2, 3*np.pi/2],
-        [0, 0, 3*np.pi/2]
+    """
+    Generates waypoints with 'In-Place Turns' using Continuous Yaw (Unwrapping).
+    This ensures the robot always takes the shortest turn (Right or Left).
+    """
+    # Define your path
+    path_xy = [
+        [0.34, 0],
+        [1.52, 0],
+        [2.90, 0],
+        [4, 1.2],
+        [6.57, 1.2],
+        [6.57, 0],      # <--- The Problematic Point
+        [4.07, 0],
+        [3.16, 1.26],
+        [1.87, 1.26],
     ]
+
+    waypoints = []
+    
+    # Initialize with robot's starting yaw
+    # (Assuming start is 0.0, change if robot starts facing elsewhere)
+    current_yaw = 0.0 
+    waypoints.append([path_xy[0][0], path_xy[0][1], current_yaw])
+
+    YAW_THRESHOLD = 0.05  # Threshold to trigger an in-place turn
+
+    for i in range(len(path_xy) - 1):
+        curr_pos = path_xy[i]
+        next_pos = path_xy[i+1]
+
+        # 1. Calculate raw geometric angle (-pi to +pi)
+        dx = next_pos[0] - curr_pos[0]
+        dy = next_pos[1] - curr_pos[1]
+        raw_yaw = np.arctan2(dy, dx)
+
+        # 2. "Smart Unwrap": Find the version of this angle closest to current_yaw
+        # We check raw_yaw, raw_yaw + 2pi, and raw_yaw - 2pi
+        # and pick the one with the smallest distance to current_yaw.
+        
+        candidates = [
+            raw_yaw,
+            raw_yaw + 2 * np.pi,
+            raw_yaw - 2 * np.pi
+        ]
+        
+        # Select the candidate that minimizes abs(candidate - current_yaw)
+        desired_yaw = min(candidates, key=lambda x: abs(x - current_yaw))
+
+        # 3. Check for Turn
+        # If the orientation changes significantly, insert a turn waypoint
+        if abs(desired_yaw - current_yaw) > YAW_THRESHOLD:
+            waypoints.append([curr_pos[0], curr_pos[1], desired_yaw])
+        
+        # 4. Add Move Waypoint
+        waypoints.append([next_pos[0], next_pos[1], desired_yaw])
+        
+        # Update current_yaw for the next iteration's comparison
+        current_yaw = desired_yaw
+
+    return np.array(waypoints)
 
 
 def run_keyboard_control(demo):
@@ -123,6 +172,8 @@ def run_keyboard_control(demo):
             count=0
             while simulation_app.is_running() and count < 1000:
                 robot_pos = demo.env.unwrapped.scene["robot"].data.root_pos_w[0, :3]
+                
+
                 demo.update_camera()
                 
                 with torch.inference_mode():
@@ -231,7 +282,7 @@ def main():
     )
 
     # demo = SpotRoughDemo(
-    #     env_cfg_class=SpotRoughEnvTestCfg_PLAY,
+    #     env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
     #     checkpoint_path=CHECKPOINT_PATH,
     #     terrain_cfg=FLAT_TERRAIN_CFG
     # )

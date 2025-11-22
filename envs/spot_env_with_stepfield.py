@@ -26,7 +26,10 @@ class SpotStepfieldEnv:
     
     def __init__(self, env_cfg_class, checkpoint_path, terrain_cfg):
 
+        self.robot_init_position = (-1, 0.7, 0.5) #(-1, 0.7, 0.5)
+         
         cube_cfg = self._create_payload_config()
+
         
         # Setup environment configuration
         env_cfg = self._setup_environment_config(
@@ -35,11 +38,14 @@ class SpotStepfieldEnv:
             terrain_cfg
         )
 
-        attach_payload_to_robot(
-            robot_body_path="/World/envs/env_0/Robot/body",
-            payload_path="/World/envs/env_0/Cube",
-            local_offset=(0.0, 0.0, 0.14343)
-        )
+        # Attach payload to robot
+        for env_idx in range(env_cfg.scene.num_envs):
+            attach_payload_to_robot(
+                robot_body_path=f"/World/envs/env_{env_idx}/Robot/body",
+                payload_path=f"/World/envs/env_{env_idx}/Cube",
+                env_idx= env_idx,
+                local_offset=(0.0, 0.0, 0.14343),
+            )
         
         # Create environment
         self.env = RslRlVecEnvWrapper(ManagerBasedRLEnv(cfg=env_cfg))
@@ -66,7 +72,7 @@ class SpotStepfieldEnv:
     def _create_payload_config(self):
         """Create configuration for the payload cube."""
         return RigidObjectCfg(
-            prim_path="/World/envs/env_0/Cube",
+            prim_path="{ENV_REGEX_NS}/Cube", #{ENV_REGEX_NS}/Robot/body /World/envs/env_0/Cube
             spawn=sim_utils.CuboidCfg(
                 size=(0.1, 0.1, 0.1),
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(),
@@ -77,7 +83,9 @@ class SpotStepfieldEnv:
                     metallic=0.2
                 ),
             ),
-            init_state=RigidObjectCfg.InitialStateCfg(),
+            init_state=RigidObjectCfg.InitialStateCfg(
+                pos=self.robot_init_position,
+            ),
         )
     
     def _setup_environment_config(self, env_cfg_class, cube_cfg, terrain_cfg):
@@ -123,15 +131,18 @@ class SpotStepfieldEnv:
         # )
 
         # Spawn Test Ramps with Rigidbody
-        env_cfg.scene.custom_ramp = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/CustomRamp",
-            spawn=sim_utils.UsdFileCfg(
-                usd_path="/home/manav/Desktop/Test course 3D models/continous_ramps/continuous_ramps_new_test.usd",
-                scale=(1.0, 1.0, 1.0),
-            ),
-        )
+        # env_cfg.scene.custom_ramp = RigidObjectCfg(
+        #     prim_path="{ENV_REGEX_NS}/CustomRamp",
+        #     spawn=sim_utils.UsdFileCfg(
+        #         usd_path="/home/manav/Desktop/Test course 3D models/continous_ramps/continuous_ramps_new_test.usd",
+        #         scale=(1.0, 1.0, 1.0),
+        #     ),
+        #     init_state=RigidObjectCfg.InitialStateCfg(
+        #         pos=(0, -0.7, 0.5),
+        #     ),
+        # )
         
-        env_cfg.scene.robot.init_state.pos = (-2, 0.0, 0.5)
+        env_cfg.scene.robot.init_state.pos = self.robot_init_position # (-1, 0.7, 0.5)
         env_cfg.scene.robot.init_state.rot = (1.0, 0.0, 0.0, 0.0)
         
         return env_cfg

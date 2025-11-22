@@ -76,69 +76,69 @@ class WaypointTrajectoryFollower:
         return interp
     
 
-    def get_command(self, t, dt, current_yaw):
-        """
-        Compute velocity command [vx, vy, yaw_rate] at time t
-        from finite differences of reference trajectory.
-        """
+    # def get_command(self, t, dt, current_yaw):
+    #     """
+    #     Compute velocity command [vx, vy, yaw_rate] at time t
+    #     from finite differences of reference trajectory.
+    #     """
         
-        if t >= self.total_time:
-            return (None, None), np.zeros(3, dtype=np.float32)
+    #     if t >= self.total_time:
+    #         return (None, None), np.zeros(3, dtype=np.float32)
 
-        ref_now = self.get_reference(t)
-        ref_next = self.get_reference(t + dt)
+    #     ref_now = self.get_reference(t)
+    #     ref_next = self.get_reference(t + dt)
 
-        error_x = (ref_next[0] - ref_now[0])
-        error_y = (ref_next[1] - ref_now[1])
+    #     error_x = (ref_next[0] - ref_now[0])
+    #     error_y = (ref_next[1] - ref_now[1])
         
-        error = (error_x, error_y)
+    #     error = (error_x, error_y)
 
 
-        dx_world = (ref_next[0] - ref_now[0]) / dt
-        dy_world = (ref_next[1] - ref_now[1]) / dt
+    #     dx_world = (ref_next[0] - ref_now[0]) / dt
+    #     dy_world = (ref_next[1] - ref_now[1]) / dt
         
-        # Transform from world frame to base frame
-        dx_base = dx_world * np.cos(current_yaw) + dy_world * np.sin(current_yaw)
-        dy_base = -dx_world * np.sin(current_yaw) + dy_world * np.cos(current_yaw)
+    #     # Transform from world frame to base frame
+    #     dx_base = dx_world * np.cos(current_yaw) + dy_world * np.sin(current_yaw)
+    #     dy_base = -dx_world * np.sin(current_yaw) + dy_world * np.cos(current_yaw)
 
-        # handle yaw properly (wrap-around)
-        yaw_now, yaw_next = ref_now[2], ref_next[2]
-        yaw_err = np.arctan2(np.sin(yaw_next - yaw_now), np.cos(yaw_next - yaw_now))
-        yaw_rate = yaw_err / dt
+    #     # handle yaw properly (wrap-around)
+    #     yaw_now, yaw_next = ref_now[2], ref_next[2]
+    #     yaw_err = np.arctan2(np.sin(yaw_next - yaw_now), np.cos(yaw_next - yaw_now))
+    #     yaw_rate = yaw_err / dt
 
-        return error, np.array([dx_base, dy_base, yaw_rate], dtype=np.float32)
+    #     return error, np.array([dx_base, dy_base, yaw_rate], dtype=np.float32)
     
 
-    def get_command_with_feedback(self, t, dt, current_pos, current_yaw):
-        # Get CURRENT waypoint goal (not next timestep reference)
-        ref_now = self.get_reference(t)
+    # def get_command_with_feedback(self, t, dt, current_pos, current_yaw):
+    #     # Get CURRENT waypoint goal (not next timestep reference)
+    #     ref_now = self.get_reference(t)
         
-        # Error to the GOAL (not to next interpolation point)
-        error_x_world = ref_now[0] - current_pos[0]
-        error_y_world = ref_now[1] - current_pos[1]
+    #     # Error to the GOAL (not to next interpolation point)
+    #     error_x_world = ref_now[0] - current_pos[0]
+    #     error_y_world = ref_now[1] - current_pos[1]
         
-        # Use proportional control
-        kp = self.kp  # Tune this
-        dx_world = kp * error_x_world
-        dy_world = kp * error_y_world
+    #     # Use proportional control
+    #     kp = self.kp  # Tune this
+    #     dx_world = kp * error_x_world
+    #     dy_world = kp * error_y_world
         
-        # Clip to training limits
-        dx_world = np.clip(dx_world, -2.0, 3.0)
-        dy_world = np.clip(dy_world, -1.5, 1.5)
+    #     # Clip to training limits
+    #     dx_world = np.clip(dx_world, -2.0, 3.0)
+    #     dy_world = np.clip(dy_world, -1.5, 1.5)
         
-        # Transform to base frame
-        dx_base = dx_world * np.cos(current_yaw) + dy_world * np.sin(current_yaw)
-        dy_base = -dx_world * np.sin(current_yaw) + dy_world * np.cos(current_yaw)
+    #     # Transform to base frame
+    #     dx_base = dx_world * np.cos(current_yaw) + dy_world * np.sin(current_yaw)
+    #     dy_base = -dx_world * np.sin(current_yaw) + dy_world * np.cos(current_yaw)
         
-        # Yaw control (same as before)
-        yaw_err = np.arctan2(np.sin(ref_now[2] - current_yaw), 
-                            np.cos(ref_now[2] - current_yaw))
-        yaw_rate = 2.0 * yaw_err  # Proportional yaw control
-        yaw_rate = np.clip(yaw_rate, -2.0, 2.0)
+    #     # Yaw control (same as before)
+    #     yaw_err = np.arctan2(np.sin(ref_now[2] - current_yaw), 
+    #                         np.cos(ref_now[2] - current_yaw))
+    #     yaw_rate = 2.0 * yaw_err  # Proportional yaw control
+    #     # yaw_rate = np.clip(yaw_rate, -2.0, 2.0)
         
-        error = (error_x_world, error_y_world, yaw_err)
+    #     error = (error_x_world, error_y_world, yaw_err)
         
-        return error, np.array([dx_base, dy_base, yaw_rate], dtype=np.float32)
+    #     return error, np.array([dx_base, dy_base, yaw_rate], dtype=np.float32)
     
 
     def get_command_with_feedback_PD(self, t, dt, current_pos, current_yaw):
