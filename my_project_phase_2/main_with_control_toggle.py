@@ -59,23 +59,24 @@ from my_utils import WaypointTrajectoryFollower
 from my_utils import FLAT_TERRAIN_CFG
 from my_utils import KeyboardController
 
-from hdf5_logger_utils import HDF5Logger
+from hdf5_logger_utils import HDF5Logger, LoggingSchema
 
 from envs import SpotStepfieldEnv, SpotRoughDemo
-from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY
+from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY, SpotRoughEnvMultiMeshRayCasterTestCfg_PLAY # 3rd one with old policy
 
 # Constants
 TASK = "Isaac-Velocity-Rough-Spot-v0"
 RL_LIBRARY = "rsl_rl"
 CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
-
+# /home/manav/IsaacLab/logs/rsl_rl/spot_flat/2025-08-27_11-21-29/exported
+# "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
 
 # HDF5 Logging Configuration
 HDF5_CONFIG = {
-    'enabled': False,  # Toggle logging on/off
-    'buffer_size': 100,  # Write every 100 timesteps
-    'save_dir': '/home/manav/IsaacLab/logged_data',
-    'experiment_prefix': 'spot_demo'
+    'enabled': True,
+    'buffer_size': 100,
+    'save_dir': '/home/manav/my_isaaclab_project/logged_data',
+    'experiment_prefix': 'imu_test'
 }
 
 # Example usage:
@@ -86,6 +87,7 @@ def create_waypoints():
     """
     # Define your path
     path_xy = [
+        [-1, 0],
         [0.34, 0],
         [1.52, 0],
         [2.90, 0],
@@ -157,44 +159,57 @@ def run_keyboard_control(demo):
         viewport=demo.camera.viewport
     )
     keyboard.print_controls()
+
+    # define schema for data collection
+    schema = LoggingSchema.payload_experiment()
     
     # Reset environment
     obs, _ = demo.env.reset()
     
     print("Starting keyboard control... Press CTRL+C to exit.\n")
     
-    with HDF5Logger(
+    logger = HDF5Logger(
         config=HDF5_CONFIG,
         control_mode='keyboard',
-        num_envs=1
-    ) as logger:
-        try:
-            count=0
-            while simulation_app.is_running() and count < 1000:
-                robot_pos = demo.env.unwrapped.scene["robot"].data.root_pos_w[0, :3]
-                
+        schema=schema,
+        num_envs=1,
+        max_timesteps=1000
+    )
 
-                demo.update_camera()
-                
-                with torch.inference_mode():
-                    action = demo.policy(obs)
-                    obs, _, _, _ = demo.env.step(action)
 
-                    if count % 10 == 0:
-                        logger.log_timestep(
-                            timestep=count,
-                            robot_pos=robot_pos.cpu().numpy()
-                        )
+    try:
+        count=0
+        while simulation_app.is_running() and count < 110: # 
+            # robot_pos = demo.env.unwrapped.scene["robot"].data.root_pos_w[0, :3]
+            payload_imu = demo.env.unwrapped.scene["payload_imu"].data
+            
+
+            demo.update_camera()
+            
+            with torch.inference_mode():
+                action = demo.policy(obs)
+                obs, _, _, _ = demo.env.step(action)
+
+                if count % 10 == 0: # 
+                    logger.log({
+                        'payload_pos_w': payload_imu.pos_w[0], # torch tensor OK - auto-converted
+                        'payload_quat_w': payload_imu.quat_w[0],
+                        'payload_lin_acc_b': payload_imu.lin_acc_b[0],
+                        'payload_ang_acc_b': payload_imu.ang_acc_b[0],
+                    })
+                    print(count)
                     
-                    # Get keyboard command
-                    keyboard_command = keyboard.get_command()
-                    obs[:, 9:12] = keyboard_command
+                # Get keyboard command
+                keyboard_command = keyboard.get_command()
+                obs[:, 9:12] = keyboard_command
+            
+            count+=1
+
+        logger.close()
+
                 
-                count+=1
-                    
-        finally:
-            # logger.close()
-            keyboard.cleanup()
+    finally:
+        keyboard.cleanup()
 
 
 def run_waypoint_control(demo):
@@ -230,7 +245,7 @@ def run_waypoint_control(demo):
     
     # Main simulation loop
     count = 0
-    while simulation_app.is_running():
+    while simulation_app.is_running(): # 50Hz 
         demo.update_camera()
         
         # Get robot position BEFORE stepping
@@ -260,11 +275,9 @@ def run_waypoint_control(demo):
             count += 1
 
         # Print status periodically
-        if count % 50 == 0:
+        if count % 10 == 0:
             print("-------------------------------------------------------")
-            print(f"Robot position: x={position[0]:.3f}, y={position[1]:.3f}, z={position[2]:.3f}")
-            print(f"Error: {error}")
-            print(f"Command: {base_command}")
+            print(demo.get_dt)
             print("-------------------------------------------------------")
 
 
@@ -275,18 +288,12 @@ def main():
     
     # Initialize demo
     print("Initializing Spot environment...")
+    
     demo = SpotStepfieldEnv(
         env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
         checkpoint_path=CHECKPOINT_PATH,
-        terrain_cfg=FLAT_TERRAIN_CFG
+        terrain_cfg=FLAT_TERRAIN_CFG,
     )
-
-    # demo = SpotRoughDemo(
-    #     env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
-    #     checkpoint_path=CHECKPOINT_PATH,
-    #     terrain_cfg=FLAT_TERRAIN_CFG
-    # )
-
     
     print("Environment initialized successfully!\n")
     
@@ -302,4 +309,6 @@ if __name__ == "__main__":
     try:
         main()
     finally:
+        print("before sim close")
         simulation_app.close()
+        print("simulation closed")

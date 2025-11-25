@@ -18,9 +18,7 @@ from my_utils import attach_payload_to_robot
 
 import numpy as np
 from isaaclab.assets import AssetBaseCfg
-from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
-
-
+from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns, ImuCfg
 
 class SpotStepfieldEnv:
     
@@ -29,13 +27,14 @@ class SpotStepfieldEnv:
         self.robot_init_position = (-1, 0.7, 0.5) #(-1, 0.7, 0.5)
          
         cube_cfg = self._create_payload_config()
-
+        imu_cfg = self._attach_imu()
         
         # Setup environment configuration
         env_cfg = self._setup_environment_config(
             env_cfg_class, 
             cube_cfg, 
-            terrain_cfg
+            terrain_cfg,
+            imu_cfg
         )
 
         # Attach payload to robot
@@ -88,7 +87,13 @@ class SpotStepfieldEnv:
             ),
         )
     
-    def _setup_environment_config(self, env_cfg_class, cube_cfg, terrain_cfg):
+    def _attach_imu(self):
+        return ImuCfg(
+            prim_path="{ENV_REGEX_NS}/Cube",
+            debug_vis=True,
+        )
+    
+    def _setup_environment_config(self, env_cfg_class, cube_cfg, terrain_cfg, imu_cfg):
         """Setup and configure the environment."""
         env_cfg = env_cfg_class()
         
@@ -100,6 +105,8 @@ class SpotStepfieldEnv:
         env_cfg.commands.base_velocity.ranges.heading = (-1.0, 1.0)
 
         env_cfg.scene.payload = cube_cfg
+
+        env_cfg.scene.payload_imu = imu_cfg
 
         env_cfg.scene.terrain = TerrainImporterCfg(
             prim_path="/World/ground",
@@ -121,16 +128,17 @@ class SpotStepfieldEnv:
             debug_vis=False,
         )
         
-        # Spawn Test Ramps without Rigidbody
-        # env_cfg.scene.custom_ramp = AssetBaseCfg(
-        #     prim_path="{ENV_REGEX_NS}/CustomRamp",
-        #     spawn=sim_utils.UsdFileCfg(
-        #         usd_path="/home/manav/Desktop/Test course 3D models/continous_ramps/continous_ramps_with_only_colliders.usd",
-        #         scale=(1.0, 1.0, 1.0),    
-        #     ),
-        # )
+        # Spawn Test Ramps without Rigidbody: Working
+        env_cfg.scene.custom_ramp = AssetBaseCfg(
+            prim_path="{ENV_REGEX_NS}/CustomRamp",
+            spawn=sim_utils.UsdFileCfg(
+                usd_path="/home/manav/Desktop/Test course 3D models/continous_ramps/continous_ramps_with_only_colliders.usd",
+                scale=(1.0, 1.0, 1.0),  
 
-        # Spawn Test Ramps with Rigidbody
+            ),
+        )
+
+        # Spawn Test Ramps with Rigidbody: Working but collision property is incorrectly set
         # env_cfg.scene.custom_ramp = RigidObjectCfg(
         #     prim_path="{ENV_REGEX_NS}/CustomRamp",
         #     spawn=sim_utils.UsdFileCfg(
@@ -193,6 +201,6 @@ class SpotStepfieldEnv:
         return (self.env.unwrapped.episode_length_buf[0] * 
                 self.env.unwrapped.step_dt)
     
-    def get_dt(self):
+    def get_dt(self): # internal calculation: self.cfg.sim.dt * self.cfg.decimation
         """Get simulation time step."""
         return self.env.unwrapped.step_dt

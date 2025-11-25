@@ -1,207 +1,203 @@
 """
-Visualization utilities for HDF5 logged data.
+Plotting Utilities for Payload IMU Analysis
 """
 
-import h5py
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
-from typing import Optional, Tuple, List
+from matplotlib.figure import Figure
+from typing import Optional
+
+from . import ExperimentData, HDF5Reader
 
 
-def plot_2d_trajectory(
-    filename: str,
-    env_id: int = 0,
-    save_path: Optional[str] = None,
-    figsize: Tuple[int, int] = (12, 10),
-    show_plot: bool = True,
-    color_by_time: bool = True,
-    title: Optional[str] = None,
-    dpi: int = 150
-) -> None:
+# Default plotting style
+plt.style.use('seaborn-v0_8-darkgrid')
+COLORS = plt.cm.tab10.colors
+
+
+def plot_imu_acceleration(
+    data: ExperimentData,
+    accel_field: str = 'payload_lin_acc_b',
+    title: Optional[str] = None
+) -> Figure:
     """
-    Plot 2D (x-y) trajectory of the robot from HDF5 logged data.
+    Plot IMU linear acceleration (x, y, z components).
     
     Args:
-        filename (str): Path to HDF5 file
-        env_id (int): Environment ID to plot (default: 0)
-        save_path (str, optional): Path to save the figure. If None, auto-generates name
-        figsize (tuple): Figure size in inches (width, height)
-        show_plot (bool): Whether to display the plot
-        color_by_time (bool): If True, colors trajectory by timestep progression
-        title (str, optional): Custom title for the plot
-        dpi (int): Resolution for saved figure
-    
-    Returns:
-        None
-    
-    Example:
-        >>> plot_2d_trajectory('data.h5', env_id=0, save_path='trajectory.png')
-        >>> plot_2d_trajectory('data.h5', color_by_time=False, show_plot=True)
+        data: Experiment data
+        accel_field: Field name for linear acceleration
+        title: Plot title
+
     """
+    fig, ax = plt.subplots(figsize=(12, 6))
     
-    # ========== Load Data ==========
-    try:
-        with h5py.File(filename, 'r') as f:
-            # Get actual timesteps logged
-            actual_timesteps = f.attrs.get('actual_timesteps', None)
-            
-            # Load robot positions
-            robot_pos = f[f'env_{env_id}/kinematics/robot_position'][:]
-            
-            # Trim to actual logged data
-            if actual_timesteps is not None:
-                robot_pos = robot_pos[:actual_timesteps]
-            
-            # Extract metadata
-            control_mode = f.attrs.get('control_mode', 'unknown')
-            date = f.attrs.get('date', 'unknown')
-            
-    except KeyError as e:
-        raise ValueError(f"Data not found in file: {e}")
-    except Exception as e:
-        raise ValueError(f"Error reading HDF5 file: {e}")
+    time = data.get_time_array()
+    accel = data.get_field(accel_field)
     
-    # Extract x, y coordinates
-    x = robot_pos[:, 0]
-    y = robot_pos[:, 1]
+    ax.plot(time, accel[:, 0], label='X', linewidth=2, color=COLORS[0])
+    ax.plot(time, accel[:, 1], label='Y', linewidth=2, color=COLORS[1])
+    ax.plot(time, accel[:, 2], label='Z', linewidth=2, color=COLORS[2])
     
-    # ========== Create Figure ==========
-    fig, ax = plt.subplots(figsize=figsize)
+    ax.set_xlabel('Time (s)', fontsize=12)
+    ax.set_ylabel('Acceleration (m/s²)', fontsize=12)
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=10)
     
-    # ========== Plot Trajectory ==========
-    if color_by_time:
-        # Create color gradient based on timestep
-        timesteps = np.arange(len(x))
-        scatter = ax.scatter(
-            x, y, 
-            c=timesteps, 
-            cmap='viridis', 
-            s=20, 
-            alpha=0.6,
-            edgecolors='none',
-            label='Trajectory'
-        )
-        
-        # Add colorbar
-        cbar = plt.colorbar(scatter, ax=ax, pad=0.02)
-        cbar.set_label('Timestep', fontsize=11, labelpad=10)
-        cbar.ax.tick_params(labelsize=10)
+    if title:
+        ax.set_title(title, fontsize=14, fontweight='bold')
     else:
-        # Single color trajectory
-        ax.plot(x, y, 'k-', linewidth=1.5, alpha=0.7, label='Trajectory')
-    
-    # ========== Mark Start and End Points ==========
-    ax.plot(
-        x[0], y[0], 
-        'go', 
-        markersize=12, 
-        label='Start', 
-        zorder=5,
-        markeredgewidth=2,
-        markeredgecolor='darkgreen'
-    )
-    
-    ax.plot(
-        x[-1], y[-1], 
-        'ro', 
-        markersize=12, 
-        label='End', 
-        zorder=5,
-        markeredgewidth=2,
-        markeredgecolor='darkred'
-    )
-    
-    # ========== Add Direction Arrows (Every N points) ==========
-    # Show direction with arrows at regular intervals
-    arrow_interval = max(len(x) // 10, 1)  # ~10 arrows along path
-    
-    for i in range(0, len(x) - 1, arrow_interval):
-        dx = x[i+1] - x[i]
-        dy = y[i+1] - y[i]
-        
-        # Only draw arrow if movement is significant
-        if np.sqrt(dx**2 + dy**2) > 0.01:
-            ax.arrow(
-                x[i], y[i], dx, dy,
-                head_width=0.2,
-                head_length=0.08,
-                fc='black',
-                ec='black',
-                alpha=1,
-                length_includes_head=True,
-                zorder=3
-            )
-    
-    # ========== Calculate Statistics ==========
-    # Total distance traveled
-    distances = np.sqrt(np.diff(x)**2 + np.diff(y)**2)
-    total_distance = np.sum(distances)
-    
-    # Straight-line displacement
-    displacement = np.sqrt((x[-1] - x[0])**2 + (y[-1] - y[0])**2)
-    
-    # Path efficiency (how straight the path is)
-    path_efficiency = (displacement / total_distance * 100) if total_distance > 0 else 0
-    
-    # ========== Add Statistics Text Box ==========
-    stats_text = (
-        f"Timesteps: {len(x)}\n"
-        f"Distance: {total_distance:.2f} m\n"
-        f"Displacement: {displacement:.2f} m\n"
-        f"Efficiency: {path_efficiency:.1f}%"
-    )
-    
-    ax.text(
-        0.02, 0.98, stats_text,
-        transform=ax.transAxes,
-        verticalalignment='top',
-        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8),
-        fontsize=10,
-        family='monospace'
-    )
-    
-    # ========== Formatting ==========
-    ax.set_xlabel('X Position (m)', fontsize=13, fontweight='bold')
-    ax.set_ylabel('Y Position (m)', fontsize=13, fontweight='bold')
-    
-    # Set title
-    if title is None:
-        filename_short = Path(filename).stem
-        title = f'Robot 2D Trajectory - {control_mode.upper()} Mode\n{filename_short}'
-    ax.set_title(title, fontsize=14, fontweight='bold', pad=15)
-    
-    # Grid
-    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
-    
-    # Legend
-    ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
-    
-    # Equal aspect ratio for accurate representation
-    ax.axis('equal')
-    
-    # Adjust tick label size
-    ax.tick_params(axis='both', which='major', labelsize=10)
-    
-    # Add margins
-    x_margin = (x.max() - x.min()) * 0.1
-    y_margin = (y.max() - y.min()) * 0.1
-    ax.set_xlim(x.min() - x_margin, x.max() + x_margin)
-    ax.set_ylim(y.min() - y_margin, y.max() + y_margin)
+        ax.set_title('Payload Linear Acceleration', fontsize=14, fontweight='bold')
     
     plt.tight_layout()
+    return fig
+
+
+def plot_imu_angular(
+    data: ExperimentData,
+    gyro_field: str = 'payload_ang_acc_b',
+    title: Optional[str] = None
+) -> Figure:
+    """
+    Plot IMU angular acceleration/velocity (roll, pitch, yaw).
     
-    # ========== Save Figure ==========
-    if save_path is None:
-        # Auto-generate save path
-        save_path = str(Path(filename).with_suffix('')) + '_trajectory_2d.png'
+    Args:
+        data: Experiment data
+        gyro_field: Field name for angular data
+        title: Plot title
+        
+    Returns:
+        Matplotlib figure
+    """
+    fig, ax = plt.subplots(figsize=(12, 6))
     
-    plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
-    print(f"✓ Saved 2D trajectory plot: {save_path}")
+    time = data.get_time_array()
+    gyro = data.get_field(gyro_field)
     
-    # ========== Display ==========
-    if show_plot:
-        plt.show()
+    ax.plot(time, gyro[:, 0], label='Roll', linewidth=2, color=COLORS[0])
+    ax.plot(time, gyro[:, 1], label='Pitch', linewidth=2, color=COLORS[1])
+    ax.plot(time, gyro[:, 2], label='Yaw', linewidth=2, color=COLORS[2])
+    
+    ax.set_xlabel('Time (s)', fontsize=12)
+    ax.set_ylabel('Angular Acceleration (rad/s²)', fontsize=12)
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=10)
+    
+    if title:
+        ax.set_title(title, fontsize=14, fontweight='bold')
     else:
-        plt.close()
+        ax.set_title('Payload Angular Acceleration', fontsize=14, fontweight='bold')
+    
+    plt.tight_layout()
+    return fig
+
+
+def plot_imu_combined(
+    data: ExperimentData,
+    accel_field: str = 'payload_lin_acc_b',
+    gyro_field: str = 'payload_ang_acc_b',
+    title: Optional[str] = None
+) -> Figure:
+    """
+    Plot both linear and angular IMU data in one figure (2 subplots).
+    
+    Args:
+        data: Experiment data
+        accel_field: Field name for linear acceleration
+        gyro_field: Field name for angular acceleration
+        title: Figure title
+        
+    Returns:
+        Matplotlib figure with 2 subplots
+    """
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+    
+    time = data.get_time_array()
+    
+    # Linear acceleration
+    accel = data.get_field(accel_field)
+    ax1.plot(time, accel[:, 0], label='X', linewidth=2, color=COLORS[0])
+    ax1.plot(time, accel[:, 1], label='Y', linewidth=2, color=COLORS[1])
+    ax1.plot(time, accel[:, 2], label='Z', linewidth=2, color=COLORS[2])
+    ax1.set_ylabel('Acceleration (m/s²)', fontsize=12)
+    ax1.set_title('Linear Acceleration', fontsize=13, fontweight='bold')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+    
+    # Angular acceleration
+    gyro = data.get_field(gyro_field)
+    ax2.plot(time, gyro[:, 0], label='Roll', linewidth=2, color=COLORS[0])
+    ax2.plot(time, gyro[:, 1], label='Pitch', linewidth=2, color=COLORS[1])
+    ax2.plot(time, gyro[:, 2], label='Yaw', linewidth=2, color=COLORS[2])
+    ax2.set_ylabel('Angular Acceleration (rad/s²)', fontsize=12)
+    ax2.set_xlabel('Time (s)', fontsize=12)
+    ax2.set_title('Angular Acceleration', fontsize=13, fontweight='bold')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    
+    if title:
+        fig.suptitle(title, fontsize=14, fontweight='bold', y=0.995)
+    else:
+        fig.suptitle('Payload IMU Data', fontsize=14, fontweight='bold', y=0.995)
+    
+    plt.tight_layout()
+    return fig
+
+
+def plot_payload_position_3d(
+    data: ExperimentData,
+    position_field: str = 'payload_pos_w',
+    title: Optional[str] = None
+) -> Figure:
+    """
+    Plot 3D trajectory of payload position.
+    
+    Args:
+        data: Experiment data
+        position_field: Field name for position
+        title: Plot title
+        
+    Returns:
+        Matplotlib figure
+    """
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    pos = data.get_field(position_field)
+    time = data.get_time_array()
+    
+    x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
+    
+    # Color trajectory by time
+    scatter = ax.scatter(x, y, z, c=time, cmap='viridis', s=20, alpha=0.6)
+    
+    # Start and end markers
+    ax.plot([x[0]], [y[0]], [z[0]], 'go', markersize=12, label='Start', zorder=5)
+    ax.plot([x[-1]], [y[-1]], [z[-1]], 'ro', markersize=12, label='End', zorder=5)
+    
+    ax.set_xlabel('X Position (m)', fontsize=12)
+    ax.set_ylabel('Y Position (m)', fontsize=12)
+    ax.set_zlabel('Z Position (m)', fontsize=12)
+    
+    cbar = plt.colorbar(scatter, ax=ax, pad=0.1)
+    cbar.set_label('Time (s)', fontsize=12)
+    
+    ax.legend()
+    
+    if title:
+        ax.set_title(title, fontsize=14, fontweight='bold')
+    else:
+        ax.set_title('Payload 3D Position', fontsize=14, fontweight='bold')
+    
+    return fig
+
+
+def save_figure(fig: Figure, filename: str, dpi: int = 300):
+    """Save figure to file."""
+    fig.savefig(filename, dpi=dpi, bbox_inches='tight')
+    print(f"Saved figure to: {filename}")
+
+
+def show_all():
+    """Show all open figures."""
+    plt.show()
 

@@ -346,7 +346,7 @@ class SpotRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             mesh_prim_paths=[
                 "/World/ground",
                 # MultiMeshRayCasterCfg.RaycastTargetCfg(target_prim_expr="{ENV_REGEX_NS}/Object"),
-                # MultiMeshRayCasterCfg.RaycastTargetCfg(target_prim_expr="{ENV_REGEX_NS}/CustomRamp", merge_prim_meshes=True),
+                MultiMeshRayCasterCfg.RaycastTargetCfg(target_prim_expr="{ENV_REGEX_NS}/CustomRamp", merge_prim_meshes=True),
             ],
             ray_alignment="yaw",
             pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),

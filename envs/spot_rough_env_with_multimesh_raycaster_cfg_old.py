@@ -111,17 +111,17 @@ class SpotEventCfg:
     """Configuration for randomization."""
 
     # startup
-    physics_material = EventTerm(
-        func=mdp.randomize_rigid_body_material,
-        mode="startup",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
-            "static_friction_range": (0.3, 1.0),
-            "dynamic_friction_range": (0.3, 0.8),
-            "restitution_range": (0.0, 0.0),
-            "num_buckets": 64,
-        },
-    )
+    # physics_material = EventTerm(
+    #     func=mdp.randomize_rigid_body_material,
+    #     mode="startup",
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+    #         "static_friction_range": (0.3, 1.0),
+    #         "dynamic_friction_range": (0.3, 0.8),
+    #         "restitution_range": (0.0, 0.0),
+    #         "num_buckets": 64,
+    #     },
+    # )
 
     # add_base_mass = EventTerm(
     #     func=mdp.randomize_rigid_body_mass,
@@ -352,19 +352,20 @@ class SpotRoughEnvTestCfg(LocomotionVelocityRoughEnvCfg):
         #     update_period=self.decimation * self.sim.dt
         # )
 
-        self.scene.height_scanner = MultiMeshRayCasterCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/body", # Attach raycaster to the same prim
-            update_period=self.decimation * self.sim.dt,
-            offset=MultiMeshRayCasterCfg.OffsetCfg(pos=(0, 0.0, 20)),
+        self.scene.height_scanner = MultiMeshRayCasterCfg (
+            prim_path="{ENV_REGEX_NS}/Robot/body",
+            update_period= self.decimation * self.sim.dt,
+            offset=MultiMeshRayCasterCfg.OffsetCfg(pos=(0, 0.0, 20.0)),
             mesh_prim_paths=[
-                "/World/Ground", # Keep targeting the ground
-                # IMPORTANT: This path must match the prim_path of your asset above
-                MultiMeshRayCasterCfg.RaycastTargetCfg(target_prim_expr="/World/Ground/Ramp"),
+                "/World/ground",
+                # MultiMeshRayCasterCfg.RaycastTargetCfg(target_prim_expr="{ENV_REGEX_NS}/Object"),
+                MultiMeshRayCasterCfg.RaycastTargetCfg(target_prim_expr="{ENV_REGEX_NS}/CustomRamp", merge_prim_meshes=True),
             ],
             ray_alignment="yaw",
             pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
-            # debug_vis=not args_cli.headless,
+            debug_vis=False,
             visualizer_cfg=RAY_CASTER_MARKER_CFG.replace(prim_path="/Visuals/RayCaster"),
+            
         )
 
         # self.scene.height_scanner.update_period = self.decimation * self.sim.dt
