@@ -25,6 +25,10 @@ def attach_payload_to_robot(robot_body_path, payload_path, env_idx, local_offset
     # Set local transform
     fixed_joint.CreateLocalPos0Attr().Set(Gf.Vec3f(*local_offset))
 
+    # Making it EXTREMELY rigid (because I want less relative acceleration effect due to robot movement)
+    fixed_joint.CreateBreakForceAttr().Set(1e10)
+    fixed_joint.CreateBreakTorqueAttr().Set(1e10)
+
 
 def update_payload_position(new_offset=(0.1, 0.1, 0.3)):
     """

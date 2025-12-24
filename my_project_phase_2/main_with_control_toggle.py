@@ -67,13 +67,13 @@ from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY, Sp
 # Constants
 TASK = "Isaac-Velocity-Rough-Spot-v0"
 RL_LIBRARY = "rsl_rl"
-CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
-# /home/manav/IsaacLab/logs/rsl_rl/spot_flat/2025-08-27_11-21-29/exported
+CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_flat/2025-08-27_11-21-29/exported/policy.pt"
+# /home/manav/IsaacLab/logs/rsl_rl/spot_flat/2025-08-27_11-21-29/exported/policy.pt
 # "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
 
 # HDF5 Logging Configuration
 HDF5_CONFIG = {
-    'enabled': True,
+    'enabled': False,
     'buffer_size': 100,
     'save_dir': '/home/manav/my_isaaclab_project/logged_data',
     'experiment_prefix': 'imu_test'
@@ -179,11 +179,10 @@ def run_keyboard_control(demo):
 
     try:
         count=0
-        while simulation_app.is_running() and count < 110: # 
+        while simulation_app.is_running() and count < 1000: # 
             # robot_pos = demo.env.unwrapped.scene["robot"].data.root_pos_w[0, :3]
-            payload_imu = demo.env.unwrapped.scene["payload_imu"].data
+            robot = demo.env.unwrapped.scene["robot"]
             
-
             demo.update_camera()
             
             with torch.inference_mode():
@@ -191,17 +190,31 @@ def run_keyboard_control(demo):
                 obs, _, _, _ = demo.env.step(action)
 
                 if count % 10 == 0: # 
+
+                    payload_imu = demo.env.unwrapped.scene["payload_imu"].data
+                    robot_imu = demo.env.unwrapped.scene["robot_imu"].data
+                    applied_torque = robot.data.applied_torque[0, :]
+
+
+                    robot_body_com_acc = demo.env.unwrapped.scene["robot"].data.body_com_acc_w[0, :]
+                    
                     logger.log({
-                        'payload_pos_w': payload_imu.pos_w[0], # torch tensor OK - auto-converted
+                        'payload_pos_w': payload_imu.pos_w[0], # torch tensor is OK
                         'payload_quat_w': payload_imu.quat_w[0],
                         'payload_lin_acc_b': payload_imu.lin_acc_b[0],
                         'payload_ang_acc_b': payload_imu.ang_acc_b[0],
                     })
-                    print(count)
+                    # print(payload_imu.lin_acc_b[0])
+                    # print(robot_imu.lin_acc_b[0])
+                    # print(len(applied_torque), type(applied_torque), applied_torque)
+
+                    # print(robot_body_com_acc)
                     
                 # Get keyboard command
                 keyboard_command = keyboard.get_command()
-                obs[:, 9:12] = keyboard_command
+                # obs[:, 9:12] = keyboard_command # for the new policy
+                obs[:, 196:199] = keyboard_command # for the old policy
+
             
             count+=1
 
@@ -290,7 +303,7 @@ def main():
     print("Initializing Spot environment...")
     
     demo = SpotStepfieldEnv(
-        env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
+        env_cfg_class=SpotRoughEnvMultiMeshRayCasterTestCfg_PLAY,
         checkpoint_path=CHECKPOINT_PATH,
         terrain_cfg=FLAT_TERRAIN_CFG,
     )

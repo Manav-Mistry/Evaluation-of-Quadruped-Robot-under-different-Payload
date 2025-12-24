@@ -39,7 +39,7 @@ def plot_imu_acceleration(
     ax.plot(time, accel[:, 2], label='Z', linewidth=2, color=COLORS[2])
     
     ax.set_xlabel('Time (s)', fontsize=12)
-    ax.set_ylabel('Acceleration (m/s²)', fontsize=12)
+    ax.set_ylabel('Acceleration', fontsize=12)
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=10)
     
@@ -78,7 +78,7 @@ def plot_imu_angular(
     ax.plot(time, gyro[:, 2], label='Yaw', linewidth=2, color=COLORS[2])
     
     ax.set_xlabel('Time (s)', fontsize=12)
-    ax.set_ylabel('Angular Acceleration (rad/s²)', fontsize=12)
+    ax.set_ylabel('Angular Acceleration', fontsize=12)
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=10)
     
@@ -118,7 +118,7 @@ def plot_imu_combined(
     ax1.plot(time, accel[:, 0], label='X', linewidth=2, color=COLORS[0])
     ax1.plot(time, accel[:, 1], label='Y', linewidth=2, color=COLORS[1])
     ax1.plot(time, accel[:, 2], label='Z', linewidth=2, color=COLORS[2])
-    ax1.set_ylabel('Acceleration (m/s²)', fontsize=12)
+    ax1.set_ylabel('Acceleration', fontsize=12)
     ax1.set_title('Linear Acceleration', fontsize=13, fontweight='bold')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
@@ -128,7 +128,7 @@ def plot_imu_combined(
     ax2.plot(time, gyro[:, 0], label='Roll', linewidth=2, color=COLORS[0])
     ax2.plot(time, gyro[:, 1], label='Pitch', linewidth=2, color=COLORS[1])
     ax2.plot(time, gyro[:, 2], label='Yaw', linewidth=2, color=COLORS[2])
-    ax2.set_ylabel('Angular Acceleration (rad/s²)', fontsize=12)
+    ax2.set_ylabel('Angular Acceleration', fontsize=12)
     ax2.set_xlabel('Time (s)', fontsize=12)
     ax2.set_title('Angular Acceleration', fontsize=13, fontweight='bold')
     ax2.legend()

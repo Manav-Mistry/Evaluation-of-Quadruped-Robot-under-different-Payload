@@ -29,12 +29,16 @@ class SpotStepfieldEnv:
         cube_cfg = self._create_payload_config()
         imu_cfg = self._attach_imu()
         
+        # attach IMU to Spot body
+        imu_spot_cfg = self._attach_imu_spot()
+        
         # Setup environment configuration
         env_cfg = self._setup_environment_config(
             env_cfg_class, 
             cube_cfg, 
             terrain_cfg,
-            imu_cfg
+            imu_cfg,
+            imu_spot_cfg
         )
 
         # Attach payload to robot
@@ -93,7 +97,13 @@ class SpotStepfieldEnv:
             debug_vis=True,
         )
     
-    def _setup_environment_config(self, env_cfg_class, cube_cfg, terrain_cfg, imu_cfg):
+    def _attach_imu_spot(self):
+        return ImuCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/body",
+            debug_vis=True,
+        )
+    
+    def _setup_environment_config(self, env_cfg_class, cube_cfg, terrain_cfg, imu_cfg, imu_spot_cfg):
         """Setup and configure the environment."""
         env_cfg = env_cfg_class()
         
@@ -107,6 +117,7 @@ class SpotStepfieldEnv:
         env_cfg.scene.payload = cube_cfg
 
         env_cfg.scene.payload_imu = imu_cfg
+        env_cfg.scene.robot_imu = imu_spot_cfg
 
         env_cfg.scene.terrain = TerrainImporterCfg(
             prim_path="/World/ground",
