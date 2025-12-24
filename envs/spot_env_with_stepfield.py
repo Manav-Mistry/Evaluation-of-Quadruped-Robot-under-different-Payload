@@ -22,7 +22,7 @@ from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns, ImuCfg
 
 class SpotStepfieldEnv:
     
-    def __init__(self, env_cfg_class, checkpoint_path, terrain_cfg):
+    def __init__(self, env_cfg_class, checkpoint_path, terrain_cfg, camera_mode):
 
         self.robot_init_position = (-1, 0.7, 0.5) #(-1, 0.7, 0.5)
          
@@ -63,10 +63,16 @@ class SpotStepfieldEnv:
         self.policy = torch.jit.load(checkpoint_path, map_location=self.device)
         
         # Setup camera
-        self.camera = ThirdPersonCamera()
-        self.camera.set_local_transform(
-            torch.tensor([-2.5, 0.0, 0.8], device=self.device)
-        )
+        self.camera = ThirdPersonCamera(mode=camera_mode)
+
+        if camera_mode == "static":
+            self.camera.set_local_transform(
+                torch.tensor([-2.5, 0.0, 2.5], device=self.device)
+            )
+        else :
+            self.camera.set_local_transform(
+                torch.tensor([-2.5, 0.0, 0.8], device=self.device)
+            )
         self.camera.activate()
         
         # Initialize commands

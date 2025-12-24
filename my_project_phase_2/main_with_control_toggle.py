@@ -67,7 +67,7 @@ from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY, Sp
 # Constants
 TASK = "Isaac-Velocity-Rough-Spot-v0"
 RL_LIBRARY = "rsl_rl"
-CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_flat/2025-08-27_11-21-29/exported/policy.pt"
+CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
 # /home/manav/IsaacLab/logs/rsl_rl/spot_flat/2025-08-27_11-21-29/exported/policy.pt
 # "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
 
@@ -212,8 +212,8 @@ def run_keyboard_control(demo):
                     
                 # Get keyboard command
                 keyboard_command = keyboard.get_command()
-                # obs[:, 9:12] = keyboard_command # for the new policy
-                obs[:, 196:199] = keyboard_command # for the old policy
+                obs[:, 9:12] = keyboard_command # for the new policy
+                # obs[:, 196:199] = keyboard_command # for the old policy
 
             
             count+=1
@@ -303,9 +303,10 @@ def main():
     print("Initializing Spot environment...")
     
     demo = SpotStepfieldEnv(
-        env_cfg_class=SpotRoughEnvMultiMeshRayCasterTestCfg_PLAY,
+        env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
         checkpoint_path=CHECKPOINT_PATH,
         terrain_cfg=FLAT_TERRAIN_CFG,
+        camera_mode="follow" # static or follow
     )
     
     print("Environment initialized successfully!\n")
