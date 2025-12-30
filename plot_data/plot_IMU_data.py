@@ -1,9 +1,9 @@
-from hdf5_logger_utils import HDF5Reader, plot_imu_combined, save_figure, plot_payload_position_3d
+from hdf5_logger_utils import HDF5Reader, plot_imu_combined, save_figure, plot_payload_position_3d, plot_imu_acceleration
 from pathlib import Path
 import re
 
 try:
-    file_path = "/home/manav/my_isaaclab_project/logged_data/imu_test_keyboard_20251126_094338.h5"
+    file_path = "/home/manav/my_isaaclab_project/logged_data/complete_demo_keyboard_20251230_124054.h5"
     
     # Extract date and time from filename (format: YYYYMMDD_HHMMSS)
     filename = Path(file_path).stem  # Gets filename without extension
@@ -16,11 +16,12 @@ try:
     print(f"Fields: {data.list_fields()}\n")
     
     print()
-    fig = plot_imu_combined(data)
+    fig = plot_imu_acceleration(data)
     save_figure(fig, f"imu_data_test{datetime_suffix}")
     
     if data.has_field('payload_pos_w'):
-        plot_payload_position_3d(data)
+        fig = plot_payload_position_3d(data)
+        save_figure(fig, f"payload_pos_data_{datetime_suffix}")
     
     print("\nDisplaying plots...")
     

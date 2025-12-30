@@ -67,6 +67,18 @@ class LoggingSchema:
         schema.add_field('payload_lin_acc_b', (3,),  description='Payload IMU linear acceleration base frame', frame='sensor')
         schema.add_field('payload_ang_acc_b', (3,), description='Payload IMU angular acceleration base frame', frame='sensor')
         return schema
+    
+    @classmethod
+    def differential_evolution(cls) -> 'LoggingSchema':
+        """Preset: Payload experiment with IMU data."""
+        schema = cls()
+        schema.add_field('payload_pos_w', (3,), description='Payload IMU position_w', frame='sensor', units="meter")
+        schema.add_field('payload_lin_acc_b', (3,),  description='Payload IMU linear acceleration base frame', frame='sensor', units="m/s^2")
+        schema.add_field('robot_lin_acc_b', (3,),  description='Robot IMU linear acceleration base frame', frame='sensor', units="m/s^2")
+        schema.add_field('robot_joint_torques', (12, ), description='Robot joint torques', frame='sensor', units="N.m")
+        schema.add_field('sim_time', (1, ), description="current time stamp", frame='time', units="second (s)")
+
+        return schema
 
 
 class HDF5Logger:
@@ -105,7 +117,7 @@ class HDF5Logger:
         self.current_buffer_idx = 0
         self.logged_timesteps = 0
         
-        self.save_dir = Path(config.get('save_dir', './logged_data'))
+        self.save_dir = Path(config.get('save_dir', '/home/manav/Desktop/data_collection'))
         self.save_dir.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

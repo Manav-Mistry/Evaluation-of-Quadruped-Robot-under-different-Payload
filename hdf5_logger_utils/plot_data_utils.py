@@ -31,7 +31,8 @@ def plot_imu_acceleration(
     """
     fig, ax = plt.subplots(figsize=(12, 6))
     
-    time = data.get_time_array()
+    # time = data.get_time_array()
+    time = data.get_field('sim_time')
     accel = data.get_field(accel_field)
     
     ax.plot(time, accel[:, 0], label='X', linewidth=2, color=COLORS[0])
@@ -70,7 +71,9 @@ def plot_imu_angular(
     """
     fig, ax = plt.subplots(figsize=(12, 6))
     
-    time = data.get_time_array()
+    # time = data.get_time_array()
+    time = data.get_field('sim_time')
+
     gyro = data.get_field(gyro_field)
     
     ax.plot(time, gyro[:, 0], label='Roll', linewidth=2, color=COLORS[0])
@@ -111,7 +114,9 @@ def plot_imu_combined(
     """
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
     
-    time = data.get_time_array()
+    # time = data.get_time_array()
+    time = data.get_field('sim_time')
+
     
     # Linear acceleration
     accel = data.get_field(accel_field)
@@ -163,7 +168,9 @@ def plot_payload_position_3d(
     ax = fig.add_subplot(111, projection='3d')
     
     pos = data.get_field(position_field)
-    time = data.get_time_array()
+    # time = data.get_time_array()
+    time = data.get_field('sim_time')
+
     
     x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
     

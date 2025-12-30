@@ -64,6 +64,9 @@ from hdf5_logger_utils import HDF5Logger, LoggingSchema
 from envs import SpotStepfieldEnv, SpotRoughDemo
 from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY, SpotRoughEnvMultiMeshRayCasterTestCfg_PLAY # 3rd one with old policy
 
+
+from pxr import UsdPhysics, PhysxSchema
+from isaacsim.core.utils.stage import get_current_stage
 # Constants
 TASK = "Isaac-Velocity-Rough-Spot-v0"
 RL_LIBRARY = "rsl_rl"
@@ -76,8 +79,26 @@ HDF5_CONFIG = {
     'enabled': False,
     'buffer_size': 100,
     'save_dir': '/home/manav/my_isaaclab_project/logged_data',
-    'experiment_prefix': 'imu_test'
+    'experiment_prefix': 'complete_demo'
 }
+
+def configure_default_physics():
+    stage = get_current_stage()
+    material_prim = stage.GetPrimAtPath("/physicsScene/defaultMaterial")
+    
+    if material_prim.IsValid():
+        physics_mat = UsdPhysics.MaterialAPI(material_prim)
+        physics_mat.CreateStaticFrictionAttr().Set(2.0)
+        physics_mat.CreateDynamicFrictionAttr().Set(2.0)
+        physics_mat.CreateRestitutionAttr().Set(0.0)
+        
+        physx_mat = PhysxSchema.PhysxMaterialAPI(material_prim)
+        physx_mat.CreateFrictionCombineModeAttr().Set("multiply")
+        physx_mat.CreateRestitutionCombineModeAttr().Set("multiply")
+        
+        print("Default physics material configured")
+    else:
+        print("No default material prim found") 
 
 # Example usage:
 def create_waypoints():
@@ -161,7 +182,7 @@ def run_keyboard_control(demo):
     keyboard.print_controls()
 
     # define schema for data collection
-    schema = LoggingSchema.payload_experiment()
+    schema = LoggingSchema.differential_evolution()
     
     # Reset environment
     obs, _ = demo.env.reset()
@@ -179,36 +200,50 @@ def run_keyboard_control(demo):
 
     try:
         count=0
-        while simulation_app.is_running() and count < 1000: # 
+        
+        # update friction
+        configure_default_physics()
+
+        # Applied torque follows this joint name order
+        joint_names = demo.env.unwrapped.scene["robot"].joint_names;
+        print(joint_names)
+
+        # body_names = demo.env.unwrapped.scene["robot"].body_names;
+        # print(body_names)
+
+        while simulation_app.is_running() and count < 1000: # 500Hz
             # robot_pos = demo.env.unwrapped.scene["robot"].data.root_pos_w[0, :3]
             robot = demo.env.unwrapped.scene["robot"]
             
             demo.update_camera()
             
             with torch.inference_mode():
-                action = demo.policy(obs)
+                action = demo.policy(obs) # 50Hz
                 obs, _, _, _ = demo.env.step(action)
 
-                if count % 10 == 0: # 
+                if count % 10 == 0: # 5Hz
 
                     payload_imu = demo.env.unwrapped.scene["payload_imu"].data
                     robot_imu = demo.env.unwrapped.scene["robot_imu"].data
                     applied_torque = robot.data.applied_torque[0, :]
-
-
-                    robot_body_com_acc = demo.env.unwrapped.scene["robot"].data.body_com_acc_w[0, :]
+                    sim_time = demo.env.unwrapped.episode_length_buf[0] * demo.env.unwrapped.step_dt
+                    # robot_body_com_acc = demo.env.unwrapped.scene["robot"].data.body_com_acc_w[0, :]
                     
                     logger.log({
                         'payload_pos_w': payload_imu.pos_w[0], # torch tensor is OK
-                        'payload_quat_w': payload_imu.quat_w[0],
+                        # 'payload_quat_w': payload_imu.quat_w[0],
                         'payload_lin_acc_b': payload_imu.lin_acc_b[0],
-                        'payload_ang_acc_b': payload_imu.ang_acc_b[0],
+                        # 'payload_ang_acc_b': payload_imu.ang_acc_b[0],
+                        'robot_lin_acc_b': robot_imu.lin_acc_b[0],
+                        'robot_joint_torques': applied_torque,
+                        'sim_time': sim_time,
                     })
+                    
                     # print(payload_imu.lin_acc_b[0])
                     # print(robot_imu.lin_acc_b[0])
                     # print(len(applied_torque), type(applied_torque), applied_torque)
-
                     # print(robot_body_com_acc)
+                    print(sim_time)
                     
                 # Get keyboard command
                 keyboard_command = keyboard.get_command()
@@ -258,6 +293,8 @@ def run_waypoint_control(demo):
     
     # Main simulation loop
     count = 0
+    configure_default_physics()
+
     while simulation_app.is_running(): # 50Hz 
         demo.update_camera()
         
@@ -301,6 +338,7 @@ def main():
     
     # Initialize demo
     print("Initializing Spot environment...")
+
     
     demo = SpotStepfieldEnv(
         env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
