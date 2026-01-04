@@ -20,6 +20,10 @@ import numpy as np
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns, ImuCfg
 
+
+# USD_PATH = "/home/manav/Desktop/Test course 3D models/continous_ramps/continous_ramps_with_only_colliders.usd"
+USD_PATH_BASELINE_FLAT ="/home/manav/Desktop/Test course 3D models/base_line_flat/base_line_flat_with_only_colliders.usd"
+
 class SpotStepfieldEnv:
     
     def __init__(self, env_cfg_class, checkpoint_path, terrain_cfg, camera_mode):
@@ -55,7 +59,8 @@ class SpotStepfieldEnv:
         self.device = self.env.unwrapped.device
         
         # Add ramps after env is initialized
-        # CUSTOM_USD_PATH = "/home/manav/Desktop/Test course 3D models/continous_ramps/continous_ramps_with_only_colliders.usd"
+        
+
         # terrain_importer: TerrainImporter = self.env.unwrapped.scene.terrain
         # terrain_importer.import_usd(name="Ramp", usd_path=CUSTOM_USD_PATH)
 
@@ -149,7 +154,7 @@ class SpotStepfieldEnv:
         env_cfg.scene.custom_ramp = AssetBaseCfg(
             prim_path="{ENV_REGEX_NS}/CustomRamp",
             spawn=sim_utils.UsdFileCfg(
-                usd_path="/home/manav/Desktop/Test course 3D models/continous_ramps/continous_ramps_with_only_colliders.usd",
+                usd_path=USD_PATH_BASELINE_FLAT,
                 scale=(1.0, 1.0, 1.0),  
 
             ),

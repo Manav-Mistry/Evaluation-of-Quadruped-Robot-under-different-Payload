@@ -243,7 +243,7 @@ def run_keyboard_control(demo):
                     # print(robot_imu.lin_acc_b[0])
                     # print(len(applied_torque), type(applied_torque), applied_torque)
                     # print(robot_body_com_acc)
-                    print(sim_time)
+                    # print(sim_time)
                     
                 # Get keyboard command
                 keyboard_command = keyboard.get_command()
@@ -268,6 +268,8 @@ def run_waypoint_control(demo):
     
     # Setup waypoint following
     waypoints = create_waypoints()
+    offset = np.array([0, 0.7, 0])
+    waypoints += offset
 
     # --------------
     #   one segment dist / seg_time = expected velocity 
@@ -291,19 +293,54 @@ def run_waypoint_control(demo):
     terrain_origins = demo.env.unwrapped.scene.terrain.terrain_origins
     print(f"Terrain origins: {terrain_origins}\n")
     
+    # define schema for data collection
+    schema = LoggingSchema.differential_evolution()
+
+    logger = HDF5Logger(
+        config=HDF5_CONFIG,
+        control_mode='keyboard',
+        schema=schema,
+        num_envs=1,
+        max_timesteps=1000
+    )
+
     # Main simulation loop
     count = 0
     configure_default_physics()
 
-    while simulation_app.is_running(): # 50Hz 
-        demo.update_camera()
-        
-        # Get robot position BEFORE stepping
-        robot_pos = demo.env.unwrapped.scene["robot"].data.root_pos_w[0, :3]
+    while simulation_app.is_running() and count < 1000: # 500Hz 
+        demo.update_camera()      
+        count += 1
+        with torch.inference_mode(): # 50Hz
+            # Get robot position BEFORE stepping
+            robot = demo.env.unwrapped.scene["robot"]
+            robot_pos = robot.data.root_pos_w[0, :3]
 
-        with torch.inference_mode():
             action = demo.policy(obs)
             obs, _, _, _ = demo.env.step(action)
+
+            if count % 10 == 0: # 5Hz
+
+                payload_imu = demo.env.unwrapped.scene["payload_imu"].data
+                robot_imu = demo.env.unwrapped.scene["robot_imu"].data
+                applied_torque = robot.data.applied_torque[0, :]
+                sim_time = demo.env.unwrapped.episode_length_buf[0] * demo.env.unwrapped.step_dt
+                # robot_body_com_acc = demo.env.unwrapped.scene["robot"].data.body_com_acc_w[0, :]
+                
+                logger.log({
+                    'payload_pos_w': payload_imu.pos_w[0], # torch tensor is OK
+                    # 'payload_quat_w': payload_imu.quat_w[0],
+                    'payload_lin_acc_b': payload_imu.lin_acc_b[0],
+                    # 'payload_ang_acc_b': payload_imu.ang_acc_b[0],
+                    'robot_lin_acc_b': robot_imu.lin_acc_b[0],
+                    'robot_joint_torques': applied_torque,
+                    'sim_time': sim_time,
+                })
+
+                # print(payload_imu.lin_acc_b[0])
+                # print(robot_imu.lin_acc_b[0])
+                # print(len(applied_torque), type(applied_torque), applied_torque)
+                # print(robot_body_com_acc)
 
             # Get timing info
             sim_time = demo.env.unwrapped.episode_length_buf[0] * demo.env.unwrapped.step_dt
@@ -322,15 +359,13 @@ def run_waypoint_control(demo):
             # Update commands
             demo.commands = torch.from_numpy(base_command).unsqueeze(0).to(demo.device)
             obs[:, 9:12] = demo.commands
-            count += 1
 
-        # Print status periodically
-        if count % 10 == 0:
-            print("-------------------------------------------------------")
-            print(demo.get_dt)
-            print("-------------------------------------------------------")
+            # obs[:, 196:199] = demo.commands # for the old policy
+        
 
+        
 
+        
 def main():
     """Main execution function."""
     # Parse RSL-RL configuration
@@ -344,7 +379,7 @@ def main():
         env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
         checkpoint_path=CHECKPOINT_PATH,
         terrain_cfg=FLAT_TERRAIN_CFG,
-        camera_mode="follow" # static or follow
+        camera_mode="static" # static or follow
     )
     
     print("Environment initialized successfully!\n")
