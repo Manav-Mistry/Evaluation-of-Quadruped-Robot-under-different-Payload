@@ -19,6 +19,7 @@ from my_utils import attach_payload_to_robot
 import numpy as np
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns, ImuCfg
+from isaaclab.sensors.ray_caster import MultiMeshRayCasterCfg
 
 
 # USD_PATH = "/home/manav/Desktop/Test course 3D models/continous_ramps/continous_ramps_with_only_colliders.usd"
@@ -27,7 +28,6 @@ USD_PATH_BASELINE_FLAT ="/home/manav/Desktop/Test course 3D models/base_line_fla
 class SpotStepfieldEnv:
     
     def __init__(self, env_cfg_class, checkpoint_path, terrain_cfg, camera_mode):
-
         self.robot_init_position = (-1, 0.7, 0.5) #(-1, 0.7, 0.5)
          
         cube_cfg = self._create_payload_config()
@@ -55,7 +55,15 @@ class SpotStepfieldEnv:
             )
         
         # Create environment
-        self.env = RslRlVecEnvWrapper(ManagerBasedRLEnv(cfg=env_cfg))
+        try:
+            base_env = ManagerBasedRLEnv(cfg=env_cfg)
+            self.env = RslRlVecEnvWrapper(base_env)
+        except Exception as e:
+            print(f"ERROR during environment creation: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+
         self.device = self.env.unwrapped.device
         
         # Add ramps after env is initialized
@@ -82,7 +90,8 @@ class SpotStepfieldEnv:
         
         # Initialize commands
         self.commands = torch.zeros(env_cfg.scene.num_envs, 3, device=self.device)
-    
+
+
     def _create_payload_config(self):
         """Create configuration for the payload cube."""
         return RigidObjectCfg(
@@ -117,7 +126,6 @@ class SpotStepfieldEnv:
     def _setup_environment_config(self, env_cfg_class, cube_cfg, terrain_cfg, imu_cfg, imu_spot_cfg):
         """Setup and configure the environment."""
         env_cfg = env_cfg_class()
-        
         env_cfg.scene.num_envs = 1
         env_cfg.episode_length_s = 1000000
         env_cfg.curriculum = None
@@ -130,35 +138,15 @@ class SpotStepfieldEnv:
         env_cfg.scene.payload_imu = imu_cfg
         env_cfg.scene.robot_imu = imu_spot_cfg
 
-        env_cfg.scene.terrain = TerrainImporterCfg(
-            prim_path="/World/ground",
-            terrain_type="generator",
-            terrain_generator=terrain_cfg,
-            max_init_terrain_level=0,
-            collision_group=-1,
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                friction_combine_mode="multiply",
-                restitution_combine_mode="multiply",
-                static_friction=1.0,
-                dynamic_friction=1.0,
-            ),
-            visual_material=sim_utils.MdlFileCfg(
-                mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-                project_uvw=True,
-                texture_scale=(0.25, 0.25),
-            ),
-            debug_vis=False,
-        )
-        
         # Spawn Test Ramps without Rigidbody: Working
-        env_cfg.scene.custom_ramp = AssetBaseCfg(
-            prim_path="{ENV_REGEX_NS}/CustomRamp",
-            spawn=sim_utils.UsdFileCfg(
-                usd_path=USD_PATH_BASELINE_FLAT,
-                scale=(1.0, 1.0, 1.0),  
+        # env_cfg.scene.custom_ramp = AssetBaseCfg(
+        #     prim_path="{ENV_REGEX_NS}/CustomRamp",
+        #     spawn=sim_utils.UsdFileCfg(
+        #         usd_path=USD_PATH_BASELINE_FLAT,
+        #         scale=(1.0, 1.0, 1.0),
 
-            ),
-        )
+        #     ),
+        # )
 
         # Spawn Test Ramps with Rigidbody: Working but collision property is incorrectly set
         # env_cfg.scene.custom_ramp = RigidObjectCfg(

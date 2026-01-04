@@ -17,16 +17,9 @@ This script has two controls 1)keyboard and 2) waypoint follower.
 import argparse
 import os
 import sys
-import numpy as np
-import torch
-
-import h5py
-from datetime import datetime
 
 sys.path.append( "/home/manav/IsaacLab/")
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 import scripts.reinforcement_learning.rsl_rl.cli_args as cli_args # type: ignore
 from isaaclab.app import AppLauncher
@@ -52,6 +45,11 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 # Import modules after app launch
+import torch
+import numpy as np
+import h5py
+from datetime import datetime
+
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg
 
 # Import custom modules
@@ -64,13 +62,14 @@ from hdf5_logger_utils import HDF5Logger, LoggingSchema
 from envs import SpotStepfieldEnv, SpotRoughDemo
 from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY, SpotRoughEnvMultiMeshRayCasterTestCfg_PLAY # 3rd one with old policy
 
+# from pxr import UsdPhysics, PhysxSchema
+# from isaacsim.core.utils.stage import 
+from isaaclab.sim.utils.stage import get_current_stage
 
-from pxr import UsdPhysics, PhysxSchema
-from isaacsim.core.utils.stage import get_current_stage
 # Constants
 TASK = "Isaac-Velocity-Rough-Spot-v0"
 RL_LIBRARY = "rsl_rl"
-CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
+CHECKPOINT_PATH = "/home/manav/my_isaaclab_project/policy.pt"
 # /home/manav/IsaacLab/logs/rsl_rl/spot_flat/2025-08-27_11-21-29/exported/policy.pt
 # "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
 
@@ -82,23 +81,23 @@ HDF5_CONFIG = {
     'experiment_prefix': 'complete_demo'
 }
 
-def configure_default_physics():
-    stage = get_current_stage()
-    material_prim = stage.GetPrimAtPath("/physicsScene/defaultMaterial")
+# def configure_default_physics():
+#     stage = get_current_stage()
+#     material_prim = stage.GetPrimAtPath("/physicsScene/defaultMaterial")
     
-    if material_prim.IsValid():
-        physics_mat = UsdPhysics.MaterialAPI(material_prim)
-        physics_mat.CreateStaticFrictionAttr().Set(2.0)
-        physics_mat.CreateDynamicFrictionAttr().Set(2.0)
-        physics_mat.CreateRestitutionAttr().Set(0.0)
+#     if material_prim.IsValid():
+#         physics_mat = UsdPhysics.MaterialAPI(material_prim)
+#         physics_mat.CreateStaticFrictionAttr().Set(2.0)
+#         physics_mat.CreateDynamicFrictionAttr().Set(2.0)
+#         physics_mat.CreateRestitutionAttr().Set(0.0)
         
-        physx_mat = PhysxSchema.PhysxMaterialAPI(material_prim)
-        physx_mat.CreateFrictionCombineModeAttr().Set("multiply")
-        physx_mat.CreateRestitutionCombineModeAttr().Set("multiply")
+#         physx_mat = PhysxSchema.PhysxMaterialAPI(material_prim)
+#         physx_mat.CreateFrictionCombineModeAttr().Set("multiply")
+#         physx_mat.CreateRestitutionCombineModeAttr().Set("multiply")
         
-        print("Default physics material configured")
-    else:
-        print("No default material prim found") 
+#         print("Default physics material configured")
+#     else:
+#         print("No default material prim found") 
 
 # Example usage:
 def create_waypoints():
@@ -200,9 +199,9 @@ def run_keyboard_control(demo):
 
     try:
         count=0
-        
+
         # update friction
-        configure_default_physics()
+        # configure_default_physics()
 
         # Applied torque follows this joint name order
         joint_names = demo.env.unwrapped.scene["robot"].joint_names;
@@ -214,9 +213,9 @@ def run_keyboard_control(demo):
         while simulation_app.is_running() and count < 1000: # 500Hz
             # robot_pos = demo.env.unwrapped.scene["robot"].data.root_pos_w[0, :3]
             robot = demo.env.unwrapped.scene["robot"]
-            
+
             demo.update_camera()
-            
+
             with torch.inference_mode():
                 action = demo.policy(obs) # 50Hz
                 obs, _, _, _ = demo.env.step(action)
@@ -254,8 +253,13 @@ def run_keyboard_control(demo):
             count+=1
 
         logger.close()
+        print("Keyboard control loop ended normally")
 
-                
+    except Exception as e:
+        print(f"ERROR in keyboard control: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     finally:
         keyboard.cleanup()
 
@@ -306,7 +310,7 @@ def run_waypoint_control(demo):
 
     # Main simulation loop
     count = 0
-    configure_default_physics()
+    # configure_default_physics()
 
     while simulation_app.is_running() and count < 1000: # 500Hz 
         demo.update_camera()      

@@ -24,11 +24,13 @@ from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 from isaaclab.markers.config import VisualizationMarkersCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sensors.ray_caster import MultiMeshRayCasterCfg, patterns
+from isaaclab.assets import AssetBaseCfg
 
 ##
 # Pre-defined configs
 ##
 from isaaclab_assets.robots.spot import SPOT_CFG  # isort: skip
+USD_PATH_BASELINE_FLAT ="/home/manav/Desktop/Test course 3D models/base_line_flat/base_line_flat_with_only_colliders.usd"
 
 RAY_CASTER_MARKER_CFG = VisualizationMarkersCfg(
     markers={
@@ -159,43 +161,43 @@ class SpotEventCfg:
         },
     )
 
-    # reset_base = EventTerm(
-    #     func=mdp.reset_root_state_uniform,
-    #     mode="reset",
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot"),
-    #         "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
-    #         "velocity_range": {
-    #             "x": (-1.5, 1.5),
-    #             "y": (-1.0, 1.0),
-    #             "z": (-0.5, 0.5),
-    #             "roll": (-0.7, 0.7),
-    #             "pitch": (-0.7, 0.7),
-    #             "yaw": (-1.0, 1.0),
-    #         },
-    #     },
-    # )
+    reset_base = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            "velocity_range": {
+                "x": (-1.5, 1.5),
+                "y": (-1.0, 1.0),
+                "z": (-0.5, 0.5),
+                "roll": (-0.7, 0.7),
+                "pitch": (-0.7, 0.7),
+                "yaw": (-1.0, 1.0),
+            },
+        },
+    )
 
-    # reset_robot_joints = EventTerm(
-    #     func=spot_mdp.reset_joints_around_default,
-    #     mode="reset",
-    #     params={
-    #         "position_range": (-0.2, 0.2),
-    #         "velocity_range": (-2.5, 2.5),
-    #         "asset_cfg": SceneEntityCfg("robot"),
-    #     },
-    # )
+    reset_robot_joints = EventTerm(
+        func=spot_mdp.reset_joints_around_default,
+        mode="reset",
+        params={
+            "position_range": (-0.2, 0.2),
+            "velocity_range": (-2.5, 2.5),
+            "asset_cfg": SceneEntityCfg("robot"),
+        },
+    )
 
     # interval
-    # push_robot = EventTerm(
-    #     func=mdp.push_by_setting_velocity,
-    #     mode="interval",
-    #     interval_range_s=(10.0, 15.0),
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot"),
-    #         "velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)},
-    #     },
-    # )
+    push_robot = EventTerm(
+        func=mdp.push_by_setting_velocity,
+        mode="interval",
+        interval_range_s=(10.0, 15.0),
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)},
+        },
+    )
 
 
 @configclass
@@ -347,7 +349,28 @@ class SpotRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # switch robot to Spot-d
         self.scene.robot = SPOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         # no height scan
-       
+
+        self.scene.terrain = TerrainImporterCfg(
+            prim_path="/World/ground",
+            terrain_type="plane",
+            collision_group=-1,
+            physics_material=sim_utils.RigidBodyMaterialCfg(
+                friction_combine_mode="multiply",
+                restitution_combine_mode="multiply",
+                static_friction=1.0,
+                dynamic_friction=1.0,
+            ),
+            debug_vis=False,
+        )
+
+        self.scene.custom_ramp = AssetBaseCfg(
+            prim_path="{ENV_REGEX_NS}/CustomRamp",
+            spawn=sim_utils.UsdFileCfg(
+                usd_path=USD_PATH_BASELINE_FLAT,
+                scale=(1.0, 1.0, 1.0),
+
+            ),
+        )
 
         # usd path: /World/ground/Ramp/ex_12_test_courses_continuous_ramps/ex_12_test_courses_continuous_ramps, /World/ground/Ramp/ex_12_test_courses_continuous_ramps/ex_12_test_courses_continuous_ramps/Mesh1_Group5_Half_half_rampos1_Group4_Group3_Group2_Group1_Model
 
@@ -357,14 +380,13 @@ class SpotRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             offset=MultiMeshRayCasterCfg.OffsetCfg(pos=(0, 0.0, 20.0)),
             mesh_prim_paths=[
                 "/World/ground",
-                # MultiMeshRayCasterCfg.RaycastTargetCfg(target_prim_expr="{ENV_REGEX_NS}/Object"),
-                MultiMeshRayCasterCfg.RaycastTargetCfg(target_prim_expr="{ENV_REGEX_NS}/CustomRamp", merge_prim_meshes=True),
+                MultiMeshRayCasterCfg.RaycastTargetCfg(prim_expr="{ENV_REGEX_NS}/CustomRamp", merge_prim_meshes=True),
             ],
             ray_alignment="yaw",
             pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
             debug_vis=False,
             visualizer_cfg=RAY_CASTER_MARKER_CFG.replace(prim_path="/Visuals/RayCaster"),
-            
+
         )
 
 
