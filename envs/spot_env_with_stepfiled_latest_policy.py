@@ -28,7 +28,7 @@ from isaaclab.sensors.ray_caster import MultiMeshRayCasterCfg
 class SpotStepfieldEnv:
     
     def __init__(self, env_cfg_class, checkpoint_path, terrain_cfg, camera_mode):
-        self.robot_init_position = (-1.1, 0.7, 0.4) #(-1, 0.7, 0.5)
+        self.robot_init_position = (-1, 0.7, 0.5) #(-1, 0.7, 0.5)
          
         cube_cfg = self._create_payload_config()
         imu_cfg = self._attach_imu()
@@ -51,7 +51,7 @@ class SpotStepfieldEnv:
                 robot_body_path=f"/World/envs/env_{env_idx}/Robot/body",
                 payload_path=f"/World/envs/env_{env_idx}/Cube",
                 env_idx= env_idx,
-                local_offset=(-0.25, 0.0, 0.14343),
+                local_offset=(0.0, 0.0, 0.14343),
             )
         
         # Create environment
@@ -84,7 +84,7 @@ class SpotStepfieldEnv:
             )
         else :
             self.camera.set_local_transform(
-                torch.tensor([-2.5, 0.0, 0.8], device=self.device)
+                torch.tensor([-2.5, 0.0, 0.6], device=self.device)
             )
         self.camera.activate()
         
@@ -114,13 +114,13 @@ class SpotStepfieldEnv:
     def _attach_imu(self):
         return ImuCfg(
             prim_path="{ENV_REGEX_NS}/Cube",
-            debug_vis=True,
+            debug_vis=False,
         )
     
     def _attach_imu_spot(self):
         return ImuCfg(
             prim_path="{ENV_REGEX_NS}/Robot/body",
-            debug_vis=True,
+            debug_vis=False,
         )
     
     def _setup_environment_config(self, env_cfg_class, cube_cfg, terrain_cfg, imu_cfg, imu_spot_cfg):

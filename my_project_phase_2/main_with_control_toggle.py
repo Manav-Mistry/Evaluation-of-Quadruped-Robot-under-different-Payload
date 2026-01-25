@@ -60,44 +60,46 @@ from my_utils import KeyboardController
 from hdf5_logger_utils import HDF5Logger, LoggingSchema
 
 from envs import SpotStepfieldEnv, SpotRoughDemo
-from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY, SpotRoughEnvMultiMeshRayCasterTestCfg_PLAY # 3rd one with old policy
+from envs import SpotRoughEnvTestCfg_PLAY, SpotRoughEnvMultimeshTestCfg_PLAY, SpotRoughEnvMultiMeshRayCasterTestCfg_PLAY, SpotRoughEnvCfg_PLAY # 3rd one with old policy, 4th one with latest policy
 
-# from pxr import UsdPhysics, PhysxSchema
+from pxr import UsdPhysics, PhysxSchema
 # from isaacsim.core.utils.stage import 
 from isaaclab.sim.utils.stage import get_current_stage
 
 # Constants
 TASK = "Isaac-Velocity-Rough-Spot-v0"
 RL_LIBRARY = "rsl_rl"
-CHECKPOINT_PATH = "/home/manav/my_isaaclab_project/policy.pt"
+CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2026-01-05_11-55-39/exported/policy.pt"
+# /home/manav/my_isaaclab_project/policy.pt
 # /home/manav/IsaacLab/logs/rsl_rl/spot_flat/2025-08-27_11-21-29/exported/policy.pt
 # "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2025-10-19_12-57-22/exported/policy.pt"
+# /home/manav/IsaacLab/logs/rsl_rl/spot_rough/2026-01-05_11-55-39/exported/policy.pt
 
 # HDF5 Logging Configuration
 HDF5_CONFIG = {
     'enabled': False,
     'buffer_size': 100,
-    'save_dir': '/home/manav/my_isaaclab_project/logged_data',
-    'experiment_prefix': 'complete_demo'
+    'save_dir': '/home/manav/Desktop/data_collection/simulation',
+    'experiment_prefix': 'flat_terrain_payload_5kg_backwards_0.25_meter'
 }
 
-# def configure_default_physics():
-#     stage = get_current_stage()
-#     material_prim = stage.GetPrimAtPath("/physicsScene/defaultMaterial")
+def configure_default_physics():
+    stage = get_current_stage()
+    material_prim = stage.GetPrimAtPath("/physicsScene/defaultMaterial")
     
-#     if material_prim.IsValid():
-#         physics_mat = UsdPhysics.MaterialAPI(material_prim)
-#         physics_mat.CreateStaticFrictionAttr().Set(2.0)
-#         physics_mat.CreateDynamicFrictionAttr().Set(2.0)
-#         physics_mat.CreateRestitutionAttr().Set(0.0)
+    if material_prim.IsValid():
+        physics_mat = UsdPhysics.MaterialAPI(material_prim)
+        physics_mat.CreateStaticFrictionAttr().Set(2.0)
+        physics_mat.CreateDynamicFrictionAttr().Set(2.0)
+        physics_mat.CreateRestitutionAttr().Set(0.0)
         
-#         physx_mat = PhysxSchema.PhysxMaterialAPI(material_prim)
-#         physx_mat.CreateFrictionCombineModeAttr().Set("multiply")
-#         physx_mat.CreateRestitutionCombineModeAttr().Set("multiply")
+        physx_mat = PhysxSchema.PhysxMaterialAPI(material_prim)
+        physx_mat.CreateFrictionCombineModeAttr().Set("multiply")
+        physx_mat.CreateRestitutionCombineModeAttr().Set("multiply")
         
-#         print("Default physics material configured")
-#     else:
-#         print("No default material prim found") 
+        print("Default physics material configured")
+    else:
+        print("No default material prim found") 
 
 # Example usage:
 def create_waypoints():
@@ -112,8 +114,10 @@ def create_waypoints():
         [1.52, 0],
         [2.90, 0],
         [4, 1.2],
+        [5.2, 1.2],
         [6.57, 1.2],
         [6.57, 0],      # <--- The Problematic Point
+        [5.57, 0],
         [4.07, 0],
         [3.16, 1.26],
         [1.87, 1.26],
@@ -217,7 +221,9 @@ def run_keyboard_control(demo):
             demo.update_camera()
 
             with torch.inference_mode():
-                action = demo.policy(obs) # 50Hz
+                # action = demo.policy(obs) # 50Hz
+                action = demo.policy(obs["policy"])
+
                 obs, _, _, _ = demo.env.step(action)
 
                 if count % 10 == 0: # 5Hz
@@ -280,7 +286,7 @@ def run_waypoint_control(demo):
     #   here
     #   seg_dist(2 meter) / seg_time (2 sec) = 1 m/s velocity
     # --------------
-    follower = WaypointTrajectoryFollower(waypoints, segment_time=2.0, kp=3, kd=1)
+    follower = WaypointTrajectoryFollower(waypoints, kp=2.0, ki=0.0, kd=10)
 
     follower.setup_markers()
     
@@ -298,11 +304,11 @@ def run_waypoint_control(demo):
     print(f"Terrain origins: {terrain_origins}\n")
     
     # define schema for data collection
-    schema = LoggingSchema.differential_evolution()
+    schema = LoggingSchema.test_course_experiment()
 
     logger = HDF5Logger(
         config=HDF5_CONFIG,
-        control_mode='keyboard',
+        control_mode='waypoint',
         schema=schema,
         num_envs=1,
         max_timesteps=1000
@@ -310,9 +316,12 @@ def run_waypoint_control(demo):
 
     # Main simulation loop
     count = 0
-    # configure_default_physics()
+    configure_default_physics()
 
-    while simulation_app.is_running() and count < 1000: # 500Hz 
+    joint_names = demo.env.unwrapped.scene["robot"].joint_names;
+    print(joint_names)
+
+    while simulation_app.is_running(): # 500Hz 
         demo.update_camera()      
         count += 1
         with torch.inference_mode(): # 50Hz
@@ -320,26 +329,29 @@ def run_waypoint_control(demo):
             robot = demo.env.unwrapped.scene["robot"]
             robot_pos = robot.data.root_pos_w[0, :3]
 
-            action = demo.policy(obs)
+            # action = demo.policy(obs)
+            action = demo.policy(obs["policy"])
             obs, _, _, _ = demo.env.step(action)
 
-            if count % 10 == 0: # 5Hz
+            # if count % 10 == 0: # 5Hz
 
-                payload_imu = demo.env.unwrapped.scene["payload_imu"].data
-                robot_imu = demo.env.unwrapped.scene["robot_imu"].data
-                applied_torque = robot.data.applied_torque[0, :]
-                sim_time = demo.env.unwrapped.episode_length_buf[0] * demo.env.unwrapped.step_dt
-                # robot_body_com_acc = demo.env.unwrapped.scene["robot"].data.body_com_acc_w[0, :]
-                
-                logger.log({
-                    'payload_pos_w': payload_imu.pos_w[0], # torch tensor is OK
-                    # 'payload_quat_w': payload_imu.quat_w[0],
-                    'payload_lin_acc_b': payload_imu.lin_acc_b[0],
-                    # 'payload_ang_acc_b': payload_imu.ang_acc_b[0],
-                    'robot_lin_acc_b': robot_imu.lin_acc_b[0],
-                    'robot_joint_torques': applied_torque,
-                    'sim_time': sim_time,
-                })
+            payload_imu = demo.env.unwrapped.scene["payload_imu"].data
+            robot_imu = demo.env.unwrapped.scene["robot_imu"].data
+            applied_torque = robot.data.applied_torque[0, :]
+            sim_time = demo.env.unwrapped.episode_length_buf[0] * demo.env.unwrapped.step_dt
+            # robot_body_com_acc = demo.env.unwrapped.scene["robot"].data.body_com_acc_w[0, :]
+            
+            logger.log({
+                'robot_pos_w' : robot_pos,
+                'payload_pos_w': payload_imu.pos_w[0], # torch tensor is OK
+                # 'payload_quat_w': payload_imu.quat_w[0],
+                'payload_lin_acc_b': payload_imu.lin_acc_b[0],
+                'payload_ang_acc_b': payload_imu.ang_acc_b[0],
+                'robot_lin_acc_b': robot_imu.lin_acc_b[0],
+                'robot_ang_acc_b': robot_imu.ang_acc_b[0],
+                'robot_joint_torques': applied_torque,
+                'sim_time': sim_time,
+            })
 
                 # print(payload_imu.lin_acc_b[0])
                 # print(robot_imu.lin_acc_b[0])
@@ -358,7 +370,30 @@ def run_waypoint_control(demo):
             
             # Get waypoint command
             # error, base_command = follower.get_command_with_feedback(sim_time, dt, position, yaw)
-            error, base_command = follower.get_command_with_feedback_PD(sim_time, dt, position, yaw)
+            # error, base_command = follower.get_command_with_feedback_PD(sim_time, dt, position, yaw)
+            # error, base_command = follower.get_command_pure_pursuit(
+            #     position,
+            #     yaw,
+            #     look_ahead_dist=0.5,  # meters ahead on path
+            #     target_speed=1.6      # desired speed m/s
+            # )
+            error, base_command = follower.get_command_pure_pursuit(
+                position,
+                yaw,
+                look_ahead_dist=0.5,
+                target_speed=1.6,
+                yaw_threshold=0.52,  # 30° - tune this for your figure-8
+                kp_yaw=2.0           # tune for rotation speed
+            )
+
+
+            # Check if robot reached final waypoint - stop data collection and exit
+            final_wp = follower.waypoints[-1][:2]
+            dist_to_final = np.linalg.norm(position[:2] - final_wp)
+            if dist_to_final < 0.2:
+                print(f"Reached final waypoint! dist={dist_to_final:.3f}m, count={count}, sim_time={sim_time:.2f}s")
+                logger.close()
+                break
 
             # Update commands
             demo.commands = torch.from_numpy(base_command).unsqueeze(0).to(demo.device)
@@ -380,7 +415,7 @@ def main():
 
     
     demo = SpotStepfieldEnv(
-        env_cfg_class=SpotRoughEnvMultimeshTestCfg_PLAY,
+        env_cfg_class=SpotRoughEnvCfg_PLAY,
         checkpoint_path=CHECKPOINT_PATH,
         terrain_cfg=FLAT_TERRAIN_CFG,
         camera_mode="static" # static or follow
