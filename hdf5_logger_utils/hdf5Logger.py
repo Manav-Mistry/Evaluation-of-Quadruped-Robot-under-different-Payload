@@ -88,9 +88,6 @@ class LoggingSchema:
         """Preset: Payload experiment with IMU data."""
         schema = cls()
         schema.add_field('robot_pos_w', (3,), description='robot position_w', frame='sensor', units="meter")
-        # schema.add_field('payload_pos_w', (3,), description='Payload IMU position_w', frame='sensor', units="meter")
-        # schema.add_field('payload_lin_acc_b', (3,),  description='Payload IMU linear acceleration base frame', frame='sensor', units="m/s^2")
-        # schema.add_field('payload_ang_acc_b', (3,),  description='Payload IMU angular acceleration base frame', frame='sensor', units="m/s^2")
         schema.add_field('robot_lin_acc_b', (3,),  description='Robot IMU linear acceleration base frame', frame='sensor', units="m/s^2")
         schema.add_field('robot_ang_acc_b', (3,),  description='Robot IMU angular acceleration base frame', frame='sensor', units="m/s^2")
         schema.add_field('robot_joint_torques', (12, ), description='Robot joint torques', frame='sensor', units="N.m")

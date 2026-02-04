@@ -77,10 +77,10 @@ CHECKPOINT_PATH = "/home/manav/IsaacLab/logs/rsl_rl/spot_rough/2026-01-05_11-55-
 
 # HDF5 Logging Configuration
 HDF5_CONFIG = {
-    'enabled': False,
+    'enabled': True,
     'buffer_size': 100,
-    'save_dir': '/home/manav/Desktop/data_collection/simulation',
-    'experiment_prefix': 'flat_terrain_payload_5kg_backwards_0.25_meter'
+    'save_dir': '/home/manav/Desktop/data_collection/simulation/baseline_vel_1.1',
+    'experiment_prefix': 'flat_terrain_baseline_vel_1.1_exp_3'
 }
 
 def configure_default_physics():
@@ -89,8 +89,8 @@ def configure_default_physics():
     
     if material_prim.IsValid():
         physics_mat = UsdPhysics.MaterialAPI(material_prim)
-        physics_mat.CreateStaticFrictionAttr().Set(2.0)
-        physics_mat.CreateDynamicFrictionAttr().Set(2.0)
+        physics_mat.CreateStaticFrictionAttr().Set(1.5)
+        physics_mat.CreateDynamicFrictionAttr().Set(1.5)
         physics_mat.CreateRestitutionAttr().Set(0.0)
         
         physx_mat = PhysxSchema.PhysxMaterialAPI(material_prim)
@@ -121,6 +121,9 @@ def create_waypoints():
         [4.07, 0],
         [3.16, 1.26],
         [1.87, 1.26],
+        [0.64, 1.26],
+        [0.64, 0.5],
+
     ]
 
     waypoints = []
@@ -286,7 +289,7 @@ def run_waypoint_control(demo):
     #   here
     #   seg_dist(2 meter) / seg_time (2 sec) = 1 m/s velocity
     # --------------
-    follower = WaypointTrajectoryFollower(waypoints, kp=2.0, ki=0.0, kd=10)
+    follower = WaypointTrajectoryFollower(waypoints, kp=2.0, ki=0.1, kd=0)
 
     follower.setup_markers()
     
@@ -304,14 +307,16 @@ def run_waypoint_control(demo):
     print(f"Terrain origins: {terrain_origins}\n")
     
     # define schema for data collection
-    schema = LoggingSchema.test_course_experiment()
+    # schema = LoggingSchema.test_course_experiment()
+    schema = LoggingSchema.baseline_experiment()
+
 
     logger = HDF5Logger(
         config=HDF5_CONFIG,
         control_mode='waypoint',
         schema=schema,
         num_envs=1,
-        max_timesteps=1000
+        max_timesteps=1500
     )
 
     # Main simulation loop
@@ -381,7 +386,7 @@ def run_waypoint_control(demo):
                 position,
                 yaw,
                 look_ahead_dist=0.5,
-                target_speed=1.6,
+                target_speed=1.1,
                 yaw_threshold=0.52,  # 30° - tune this for your figure-8
                 kp_yaw=2.0           # tune for rotation speed
             )
@@ -398,6 +403,7 @@ def run_waypoint_control(demo):
             # Update commands
             demo.commands = torch.from_numpy(base_command).unsqueeze(0).to(demo.device)
             obs[:, 9:12] = demo.commands
+            # print(demo.commands)
 
             # obs[:, 196:199] = demo.commands # for the old policy
         

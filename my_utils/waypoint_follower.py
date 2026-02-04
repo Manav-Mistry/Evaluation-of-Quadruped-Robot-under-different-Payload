@@ -85,143 +85,6 @@ class WaypointTrajectoryFollower:
         return interp
     
 
-    # def get_command_P(self, current_pos, current_yaw, position_threshold=0.3):
-    #     """
-    #     Simple proportional controller for waypoint following.
-
-    #     Args:
-    #         current_pos: [x, y] current robot position in world frame
-    #         current_yaw: current robot yaw angle in radians
-    #         position_threshold: distance threshold to consider waypoint reached
-
-    #     Returns:
-    #         error: (error_x, error_y, yaw_err) in world frame
-    #         command: [vx_base, vy_base, yaw_rate] velocity command in base frame
-    #     """
-    #     # Check if we've completed all waypoints
-    #     if self.waypoint_idx >= len(self.waypoints):
-    #         return (0.0, 0.0, 0.0), np.zeros(3, dtype=np.float32)
-
-    #     # Get current target waypoint
-    #     target = self.waypoints[self.waypoint_idx]
-    #     target_x, target_y, target_yaw = target[0], target[1], target[2]
-
-    #     # Compute position error in world frame
-    #     error_x = target_x - current_pos[0]
-    #     error_y = target_y - current_pos[1]
-    #     distance = np.sqrt(error_x**2 + error_y**2)
-
-    #     # Check if waypoint is reached - advance to next
-    #     if distance < position_threshold:
-    #         self.waypoint_idx += 1
-    #         if self.waypoint_idx >= len(self.waypoints):
-    #             return (0.0, 0.0, 0.0), np.zeros(3, dtype=np.float32)
-    #         # Update target to new waypoint
-    #         target = self.waypoints[self.waypoint_idx]
-    #         target_x, target_y, target_yaw = target[0], target[1], target[2]
-    #         error_x = target_x - current_pos[0]
-    #         error_y = target_y - current_pos[1]
-
-    #     # Proportional control in world frame
-    #     vx_world = self.kp * error_x
-    #     vy_world = self.kp * error_y
-
-    #     # Transform velocity from world frame to base (robot) frame
-    #     # R^T * v_world where R is rotation matrix from base to world
-    #     vx_base = vx_world * np.cos(current_yaw) + vy_world * np.sin(current_yaw)
-    #     vy_base = -vx_world * np.sin(current_yaw) + vy_world * np.cos(current_yaw)
-
-    #     # Yaw error with proper wrap-around handling
-    #     yaw_err = np.arctan2(np.sin(target_yaw - current_yaw), np.cos(target_yaw - current_yaw))
-    #     yaw_rate = self.kp * yaw_err
-
-    #     error = (error_x, error_y, yaw_err)
-    #     command = np.array([vx_base, vy_base, yaw_rate], dtype=np.float32)
-
-    #     return error, command
-
-    # def get_command_PID(self, current_pos, current_yaw, dt, position_threshold=0.3, integral_limit=5.0):
-    #     """
-    #     Full PID controller for waypoint following.
-
-    #     Args:
-    #         current_pos: [x, y] current robot position in world frame
-    #         current_yaw: current robot yaw angle in radians
-    #         dt: time step in seconds (for integral and derivative)
-    #         position_threshold: distance threshold to consider waypoint reached
-    #         integral_limit: max absolute value for integral term (anti-windup)
-
-    #     Returns:
-    #         error: (error_x, error_y, yaw_err) in world frame
-    #         command: [vx_base, vy_base, yaw_rate] velocity command in base frame
-    #     """
-    #     # Check if we've completed all waypoints
-    #     if self.waypoint_idx >= len(self.waypoints):
-    #         return (0.0, 0.0, 0.0), np.zeros(3, dtype=np.float32)
-
-    #     # Get current target waypoint
-    #     target = self.waypoints[self.waypoint_idx]
-    #     target_x, target_y, target_yaw = target[0], target[1], target[2]
-
-    #     # Compute position error in world frame
-    #     error_x = target_x - current_pos[0]
-    #     error_y = target_y - current_pos[1]
-    #     distance = np.sqrt(error_x**2 + error_y**2)
-
-    #     # Check if waypoint is reached - advance to next
-    #     if distance < position_threshold:
-    #         self.waypoint_idx += 1
-    #         # Reset integral when switching waypoints to avoid windup carryover
-    #         self.integral = np.zeros(3)
-    #         self.prev_error = np.zeros(3)
-    #         if self.waypoint_idx >= len(self.waypoints):
-    #             return (0.0, 0.0, 0.0), np.zeros(3, dtype=np.float32)
-    #         # Update target to new waypoint
-    #         target = self.waypoints[self.waypoint_idx]
-    #         target_x, target_y, target_yaw = target[0], target[1], target[2]
-    #         error_x = target_x - current_pos[0]
-    #         error_y = target_y - current_pos[1]
-
-    #     # Yaw error with proper wrap-around handling
-    #     yaw_err = np.arctan2(np.sin(target_yaw - current_yaw), np.cos(target_yaw - current_yaw))
-
-    #     # Current error vector
-    #     error = np.array([error_x, error_y, yaw_err])
-
-    #     # --- PID computation ---
-    #     # Proportional term
-    #     P = self.kp * error
-
-    #     # Integral term (with anti-windup clamping)
-    #     self.integral += error * dt
-    #     self.integral = np.clip(self.integral, -integral_limit, integral_limit)
-    #     I = self.ki * self.integral
-
-    #     # Derivative term
-    #     if dt > 0:
-    #         derivative = (error - self.prev_error) / dt
-    #     else:
-    #         derivative = np.zeros(3)
-    #     D = self.kd * derivative
-
-    #     # Store current error for next iteration
-    #     self.prev_error = error.copy()
-
-    #     # PID output in world frame
-    #     pid_output = P + I + D
-    #     vx_world = pid_output[0]
-    #     vy_world = pid_output[1]
-    #     yaw_rate = pid_output[2]
-
-    #     # Transform velocity from world frame to base (robot) frame
-    #     vx_base = vx_world * np.cos(current_yaw) + vy_world * np.sin(current_yaw)
-    #     vy_base = -vx_world * np.sin(current_yaw) + vy_world * np.cos(current_yaw)
-
-    #     error_tuple = (error_x, error_y, yaw_err)
-    #     command = np.array([vx_base, vy_base, yaw_rate], dtype=np.float32)
-
-    #     return error_tuple, command
-
     def _find_closest_point_on_segment(self, p, a, b):
         """
         Find the closest point on line segment AB to point P.
@@ -387,10 +250,10 @@ class WaypointTrajectoryFollower:
             yaw_rate = np.clip(yaw_rate, -1.5, 1.5)
 
             # In-place rotation at final approach if needed
-            if abs(yaw_err) > yaw_threshold:
-                error = (error_x, error_y, yaw_err)
-                command = np.array([0.0, 0.0, yaw_rate], dtype=np.float32)
-                return error, command
+            # if abs(yaw_err) > yaw_threshold:
+            #     error = (error_x, error_y, yaw_err)
+            #     command = np.array([0.0, 0.0, yaw_rate], dtype=np.float32)
+            #     return error, command
 
             # Slow down as we approach final goal
             speed = min(target_speed, self.kp * dist_to_goal)

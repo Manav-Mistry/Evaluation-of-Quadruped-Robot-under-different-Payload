@@ -34,7 +34,7 @@ from isaaclab_assets.robots.spot import SPOT_CFG  # isort: skip
 USD_PATH_BASELINE_FLAT_NOWALL = "/home/manav/Desktop/NoWalls/ex-12_test_courses_baseline_flat_NOWALL/baseline_flat_with_only_colliders.usd"
 USD_PATH_BASELINE_FLAT ="/home/manav/Desktop/Test course 3D models/base_line_flat/base_line_flat_with_only_colliders.usd"
 USD_PATH_CONTINUOUS_RAMPS = "/home/manav/Desktop/Test course 3D models/continous_ramps/continous_ramps_with_only_colliders.usd"
-USD_PATH_CROSSING_RAMPS = "/home/manav/Desktop/STL_Test_course_3D/crossing_ramps/crossing_ramps_only_colliders.usd"
+USD_PATH_CROSSING_RAMPS = "/home/manav/Desktop/Test course 3D models/crossing_ramps/crossing_ramps_with_only_colliders.usd"
 
 RAY_CASTER_MARKER_CFG = VisualizationMarkersCfg(
     markers={
@@ -386,7 +386,7 @@ class SpotRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
 
             ),
             init_state=AssetBaseCfg.InitialStateCfg(
-                pos=(0.0, 0.0, -0.05),
+                pos=(0.0, 0.0, -0.06),
             ),
         )
 

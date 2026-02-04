@@ -46,13 +46,13 @@ class SpotStepfieldEnv:
         )
 
         # Attach payload to robot
-        for env_idx in range(env_cfg.scene.num_envs):
-            attach_payload_to_robot(
-                robot_body_path=f"/World/envs/env_{env_idx}/Robot/body",
-                payload_path=f"/World/envs/env_{env_idx}/Cube",
-                env_idx= env_idx,
-                local_offset=(-0.25, 0.0, 0.14343),
-            )
+        # for env_idx in range(env_cfg.scene.num_envs):
+        #     attach_payload_to_robot(
+        #         robot_body_path=f"/World/envs/env_{env_idx}/Robot/body",
+        #         payload_path=f"/World/envs/env_{env_idx}/Cube",
+        #         env_idx= env_idx,
+        #         local_offset=(-0.25, 0.0, 0.14343),
+        #     )
         
         # Create environment
         try:
@@ -99,35 +99,37 @@ class SpotStepfieldEnv:
             spawn=sim_utils.CuboidCfg(
                 size=(0.1, 0.1, 0.1),
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(),
-                mass_props=sim_utils.MassPropertiesCfg(mass=5.0),
+                mass_props=sim_utils.MassPropertiesCfg(mass=8.0),
                 collision_props=sim_utils.CollisionPropertiesCfg(),
                 visual_material=sim_utils.PreviewSurfaceCfg(
                     diffuse_color=(0.0, 1.0, 0.0), 
                     metallic=0.2
                 ),
             ),
-            init_state=RigidObjectCfg.InitialStateCfg(
-                pos=self.robot_init_position,
-            ),
+            # init_state=RigidObjectCfg.InitialStateCfg(
+            #     pos=self.robot_init_position,
+            # ),
         )
     
     def _attach_imu(self):
         return ImuCfg(
             prim_path="{ENV_REGEX_NS}/Cube",
             debug_vis=True,
+            gravity_bias=(0, 0, 0)
         )
     
     def _attach_imu_spot(self):
         return ImuCfg(
             prim_path="{ENV_REGEX_NS}/Robot/body",
             debug_vis=True,
+            gravity_bias=(0, 0, 0)
         )
     
     def _setup_environment_config(self, env_cfg_class, cube_cfg, terrain_cfg, imu_cfg, imu_spot_cfg):
         """Setup and configure the environment."""
         env_cfg = env_cfg_class()
         env_cfg.scene.num_envs = 1
-        env_cfg.episode_length_s = 1000000
+        env_cfg.episode_length_s = 100000
         env_cfg.curriculum = None
 
         # env_cfg.commands.base_velocity.ranges.lin_vel_x = (-2, 5.2)
