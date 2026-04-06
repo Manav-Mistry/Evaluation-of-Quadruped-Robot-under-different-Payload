@@ -28,7 +28,8 @@ from isaaclab.sensors.ray_caster import MultiMeshRayCasterCfg
 class SpotStepfieldEnv:
     
     def __init__(self, env_cfg_class, checkpoint_path, terrain_cfg, camera_mode):
-        self.robot_init_position = (-1.1, 0.7, 0.4) #(-1, 0.7, 0.5)
+        
+        self.robot_init_position = (-1, 0.7, 0.5) #(-1, 0.7, 0.5)
          
         cube_cfg = self._create_payload_config()
         imu_cfg = self._attach_imu()
@@ -44,16 +45,6 @@ class SpotStepfieldEnv:
             imu_cfg,
             imu_spot_cfg
         )
-
-        # Attach payload to robot
-        # for env_idx in range(env_cfg.scene.num_envs):
-        #     attach_payload_to_robot(
-        #         robot_body_path=f"/World/envs/env_{env_idx}/Robot/body",
-        #         payload_path=f"/World/envs/env_{env_idx}/Cube",
-        #         env_idx= env_idx,
-        #         local_offset=(-0.25, 0.0, 0.14343),
-        #     )
-        
         # Create environment
         try:
             base_env = ManagerBasedRLEnv(cfg=env_cfg)
@@ -63,6 +54,16 @@ class SpotStepfieldEnv:
             import traceback
             traceback.print_exc()
             raise
+
+        # Attach payload to robot
+        for env_idx in range(env_cfg.scene.num_envs):
+            attach_payload_to_robot(
+                robot_body_path=f"/World/envs/env_{env_idx}/Robot/body",
+                payload_path=f"/World/envs/env_{env_idx}/Cube",
+                env_idx= env_idx,
+                local_offset=(0.0, 0.0, 0.14343),
+            )
+        
 
         self.device = self.env.unwrapped.device
         
@@ -79,8 +80,9 @@ class SpotStepfieldEnv:
         self.camera = ThirdPersonCamera(mode=camera_mode)
 
         if camera_mode == "static":
-            self.camera.set_local_transform(
-                torch.tensor([-2.5, 0.0, 2.5], device=self.device)
+            self.camera.set_static_pose(
+                position=(4.32, 5.46, 4.93), # position=(-1.0, 1.2, 3.0)
+                rotation=(56, 0, 180) # rotation=(52, 0, -90)
             )
         else :
             self.camera.set_local_transform(
@@ -99,30 +101,32 @@ class SpotStepfieldEnv:
             spawn=sim_utils.CuboidCfg(
                 size=(0.1, 0.1, 0.1),
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(),
-                mass_props=sim_utils.MassPropertiesCfg(mass=8.0),
+                mass_props=sim_utils.MassPropertiesCfg(mass=0.0),
                 collision_props=sim_utils.CollisionPropertiesCfg(),
                 visual_material=sim_utils.PreviewSurfaceCfg(
                     diffuse_color=(0.0, 1.0, 0.0), 
                     metallic=0.2
                 ),
             ),
-            # init_state=RigidObjectCfg.InitialStateCfg(
-            #     pos=self.robot_init_position,
-            # ),
+            init_state=RigidObjectCfg.InitialStateCfg(
+                pos=self.robot_init_position,
+            ),
         )
     
     def _attach_imu(self):
         return ImuCfg(
             prim_path="{ENV_REGEX_NS}/Cube",
-            debug_vis=True,
-            gravity_bias=(0, 0, 0)
+            debug_vis=False,
+            gravity_bias=(0, 0, 0),
+            update_period=0.02,  # 50Hz, matches decimation * sim.dt (10 * 0.002)
         )
-    
+
     def _attach_imu_spot(self):
         return ImuCfg(
             prim_path="{ENV_REGEX_NS}/Robot/body",
-            debug_vis=True,
-            gravity_bias=(0, 0, 0)
+            debug_vis=False,
+            gravity_bias=(0, 0, 0),
+            update_period=0.02,  # 50Hz, matches decimation * sim.dt (10 * 0.002)
         )
     
     def _setup_environment_config(self, env_cfg_class, cube_cfg, terrain_cfg, imu_cfg, imu_spot_cfg):

@@ -26,6 +26,9 @@ from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sensors.ray_caster import MultiMeshRayCasterCfg, patterns
 from isaaclab.assets import AssetBaseCfg
 
+from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG
+
+
 ##
 # Pre-defined configs
 ##
@@ -350,9 +353,26 @@ class SpotRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.robot = SPOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         # no height scan
 
+        # self.scene.terrain = TerrainImporterCfg(
+        #     prim_path="/World/ground",
+        #     terrain_type="plane",
+        #     collision_group=-1,
+        #     physics_material=sim_utils.RigidBodyMaterialCfg(
+        #         friction_combine_mode="multiply",
+        #         restitution_combine_mode="multiply",
+        #         static_friction=1.0,
+        #         dynamic_friction=1.0,
+        #     ),
+        #     debug_vis=False,
+        #     visual_material = sim_utils.PreviewSurfaceCfg(diffuse_color=(1, 1, 1)),
+        # )
+
+         # terrain
         self.scene.terrain = TerrainImporterCfg(
             prim_path="/World/ground",
-            terrain_type="plane",
+            terrain_type="generator",
+            terrain_generator=ROUGH_TERRAINS_CFG,
+            max_init_terrain_level=5,
             collision_group=-1,
             physics_material=sim_utils.RigidBodyMaterialCfg(
                 friction_combine_mode="multiply",
@@ -360,18 +380,22 @@ class SpotRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
                 static_friction=1.0,
                 dynamic_friction=1.0,
             ),
-            debug_vis=False,
-            visual_material = sim_utils.PreviewSurfaceCfg(diffuse_color=(1, 1, 1)),
-        )
-
-        self.scene.custom_ramp = AssetBaseCfg(
-            prim_path="{ENV_REGEX_NS}/CustomRamp",
-            spawn=sim_utils.UsdFileCfg(
-                usd_path=USD_PATH_BASELINE_FLAT,
-                scale=(1.0, 1.0, 1.0),
-
+            visual_material=sim_utils.MdlFileCfg(
+                mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+                project_uvw=True,
+                texture_scale=(0.25, 0.25),
             ),
+            debug_vis=True,
         )
+
+        # self.scene.custom_ramp = AssetBaseCfg(
+        #     prim_path="{ENV_REGEX_NS}/CustomRamp",
+        #     spawn=sim_utils.UsdFileCfg(
+        #         usd_path=USD_PATH_BASELINE_FLAT,
+        #         scale=(1.0, 1.0, 1.0),
+
+        #     ),
+        # )
 
         # usd path: /World/ground/Ramp/ex_12_test_courses_continuous_ramps/ex_12_test_courses_continuous_ramps, /World/ground/Ramp/ex_12_test_courses_continuous_ramps/ex_12_test_courses_continuous_ramps/Mesh1_Group5_Half_half_rampos1_Group4_Group3_Group2_Group1_Model
 
@@ -381,7 +405,7 @@ class SpotRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             offset=MultiMeshRayCasterCfg.OffsetCfg(pos=(0, 0.0, 20.0)),
             mesh_prim_paths=[
                 "/World/ground",
-                MultiMeshRayCasterCfg.RaycastTargetCfg(prim_expr="{ENV_REGEX_NS}/CustomRamp", merge_prim_meshes=True),
+                # MultiMeshRayCasterCfg.RaycastTargetCfg(prim_expr="{ENV_REGEX_NS}/CustomRamp", merge_prim_meshes=True),
             ],
             ray_alignment="yaw",
             pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),

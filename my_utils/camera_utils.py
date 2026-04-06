@@ -2,7 +2,7 @@
 # pyright: reportOptionalMemberAccess = false
 
 import torch
-from pxr import Gf, Sdf
+from pxr import Gf, Sdf, UsdGeom
 from isaacsim.core.utils.stage import get_current_stage
 from omni.kit.viewport.utility import get_viewport_from_window_name
 from omni.kit.viewport.utility.camera_state import ViewportCameraState
@@ -29,6 +29,9 @@ class ThirdPersonCamera:
         self._camera_local_transform = None
         self.mode = mode
         self._static_position_set = False
+        self._static_position = None
+        self._static_target = None
+        self._static_rotation = None
 
         if mode in ["static", "follow"]:
             self._create_camera()
@@ -61,6 +64,28 @@ class ThirdPersonCamera:
         """
         self._camera_local_transform = local_transform
 
+    def set_static_pose(self, position, target=None, rotation=None):
+        """
+        Set a fixed world-space position and orientation for static mode.
+
+        When set, static mode will use these values instead of computing
+        the position from the robot's pose + local transform.
+
+        Provide either `target` (look-at point) or `rotation` (Euler angles), not both.
+
+        Args:
+            position: tuple/list of (x, y, z) world position for the camera
+            target: tuple/list of (x, y, z) world position the camera looks at
+            rotation: tuple/list of (rx, ry, rz) Euler angles in degrees (XYZ order)
+        """
+        self._static_position = Gf.Vec3d(*position)
+        if rotation is not None:
+            self._static_rotation = Gf.Vec3f(*rotation)
+            self._static_target = None
+        elif target is not None:
+            self._static_target = Gf.Vec3d(*target)
+            self._static_rotation = None
+
     def set_mode(self, mode):
         """
         Change camera mode.
@@ -90,9 +115,6 @@ class ThirdPersonCamera:
             robot_quat: Robot base quaternion [w, x, y, z]
             target_offset_z: Vertical offset for camera target point
         """
-        if self._camera_local_transform is None:
-            return
-
         # Perspective mode: do nothing
         if self.mode == "perspective":
             return
@@ -100,12 +122,25 @@ class ThirdPersonCamera:
         # Static mode: set position once and never update
         if self.mode == "static":
             if not self._static_position_set:
-                self._set_camera_pose(robot_pos, robot_quat, target_offset_z)
+                if self._static_position is not None and self._static_rotation is not None:
+                    # Set translate + rotate directly on the camera prim
+                    stage = get_current_stage()
+                    prim = stage.GetPrimAtPath(self.camera_path)
+                    xformable = UsdGeom.Xformable(prim)
+                    xformable.ClearXformOpOrder()
+                    xformable.AddTranslateOp().Set(self._static_position)
+                    xformable.AddRotateXYZOp().Set(self._static_rotation)
+                elif self._static_position is not None and self._static_target is not None:
+                    camera_state = ViewportCameraState(self.camera_path, self.viewport)
+                    camera_state.set_position_world(self._static_position, True)
+                    camera_state.set_target_world(self._static_target, True)
+                elif self._camera_local_transform is not None:
+                    self._set_camera_pose(robot_pos, robot_quat, target_offset_z)
                 self._static_position_set = True
             return
 
         # Follow mode: update every call
-        if self.mode == "follow":
+        if self.mode == "follow" and self._camera_local_transform is not None:
             self._set_camera_pose(robot_pos, robot_quat, target_offset_z)
 
     def _set_camera_pose(self, robot_pos, robot_quat, target_offset_z):

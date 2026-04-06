@@ -6,6 +6,7 @@ from .spot_rough_env_cfg import SpotRoughEnvTestCfg_PLAY
 from .spot_rough_env_with_multimesh_raycaster_cfg import SpotRoughEnvMultimeshTestCfg_PLAY
 from .spot_rough_env_with_multimesh_raycaster_cfg_old import SpotRoughEnvMultiMeshRayCasterTestCfg_PLAY
 from .spot_env_with_multimesh_raycaster_latest_policy import SpotRoughEnvCfg_PLAY
+from .spot_rough_env_after_UR import SpotRoughEnvCorrectedCfg_PLAY
 
 __version__ = "0.1.0"
 

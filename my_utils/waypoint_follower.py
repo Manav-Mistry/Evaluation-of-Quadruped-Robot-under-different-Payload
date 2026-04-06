@@ -42,6 +42,7 @@ class WaypointTrajectoryFollower:
                     visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 1.0)),  # Cyan
                 ),
             },
+            
         )
         self.markers = VisualizationMarkers(marker_cfg)
         
@@ -110,75 +111,53 @@ class WaypointTrajectoryFollower:
         """
         Find the look-ahead point on the path at a specified distance ahead.
 
+        Segment advancement: advance waypoint_idx whenever the robot is within
+        look_ahead_dist of the next waypoint. This handles zero-length segments
+        (in-place turns) and V-shape paths naturally without special cases.
+
         Args:
             current_pos: [x, y] current robot position
             look_ahead_dist: distance to look ahead on the path
         """
         pos = np.array(current_pos[:2])
 
-        # Check if we've completed all waypoints
         if self.waypoint_idx >= len(self.waypoints) - 1:
             return self.waypoints[-1].copy(), True
 
-        # Only search from current segment forward (not the entire path!)
-        # This prevents "skipping" when the path loops back on itself
-        min_dist = float('inf')
-        closest_segment_idx = self.waypoint_idx
-        closest_t = 0.0
-
-        # Search only current segment and next few (limit lookahead to avoid skipping)
-        search_limit = min(self.waypoint_idx + 3, len(self.waypoints) - 1)
-
-        for i in range(self.waypoint_idx, search_limit):
-            a = self.waypoints[i][:2]
-            b = self.waypoints[i + 1][:2]
-            closest, t = self._find_closest_point_on_segment(pos, a, b)
-            dist = np.linalg.norm(pos - closest)
-
-            if dist < min_dist:
-                min_dist = dist
-                closest_segment_idx = i
-                closest_t = t
-
-        # Update waypoint_idx if we've moved to a new segment
-        # Only advance forward, never backward
-        if closest_segment_idx > self.waypoint_idx:
-            self.waypoint_idx = closest_segment_idx
-
-        # Also check if we've passed the current waypoint (for segment advancement)
-        # This handles the case where we're past the end of current segment
-        if closest_t > 0.95 and self.waypoint_idx < len(self.waypoints) - 2:
-            # Check distance to next waypoint
+        # Advance waypoint_idx while the robot is close enough to the next waypoint.
+        # Zero-length segments (in-place turns): next waypoint is at same XY → distance=0 → skipped instantly.
+        # V-shapes: only advances when robot physically reaches the turning point.
+        while self.waypoint_idx < len(self.waypoints) - 2:
             next_wp = self.waypoints[self.waypoint_idx + 1][:2]
             if np.linalg.norm(pos - next_wp) < look_ahead_dist:
                 self.waypoint_idx += 1
-                closest_segment_idx = self.waypoint_idx
-                closest_t = 0.0
+            else:
+                break
 
-        # Now find the look-ahead point starting from our closest point
-        # and moving forward along the path by look_ahead_dist
+        # Find closest point on the current segment to use as the walk start.
+        a = self.waypoints[self.waypoint_idx][:2]
+        b = self.waypoints[self.waypoint_idx + 1][:2]
+        _, closest_t = self._find_closest_point_on_segment(pos, a, b)
+
+        # Walk look_ahead_dist forward along the path from the closest point.
         remaining_dist = look_ahead_dist
-        current_seg = closest_segment_idx
+        current_seg = self.waypoint_idx
 
-        # Distance remaining in current segment from closest point
-        a = self.waypoints[current_seg][:2]
-        b = self.waypoints[current_seg + 1][:2]
-        segment_remaining = (1.0 - closest_t) * np.linalg.norm(b - a)
+        seg_length = np.linalg.norm(b - a)
+        segment_remaining = (1.0 - closest_t) * seg_length
 
         while remaining_dist > segment_remaining:
             remaining_dist -= segment_remaining
             current_seg += 1
 
-            # Check if we've reached the end of the path
             if current_seg >= len(self.waypoints) - 1:
-                # Return the final waypoint
                 return self.waypoints[-1].copy(), True
 
             a = self.waypoints[current_seg][:2]
             b = self.waypoints[current_seg + 1][:2]
             segment_remaining = np.linalg.norm(b - a)
 
-        # Interpolate within the final segment
+        # Interpolate position within the final segment.
         a = self.waypoints[current_seg][:2]
         b = self.waypoints[current_seg + 1][:2]
         seg_length = np.linalg.norm(b - a)
@@ -187,28 +166,20 @@ class WaypointTrajectoryFollower:
             look_ahead_xy = a
             t_final = 0.0
         else:
-            # How far along this segment?
-            if current_seg == closest_segment_idx:
-                # Still in same segment, account for starting position
+            if current_seg == self.waypoint_idx:
                 dist_from_a = closest_t * seg_length + remaining_dist
             else:
-                # New segment, start from beginning
                 dist_from_a = remaining_dist
-
-            t_final = dist_from_a / seg_length
-            t_final = np.clip(t_final, 0.0, 1.0)
+            t_final = np.clip(dist_from_a / seg_length, 0.0, 1.0)
             look_ahead_xy = a + t_final * (b - a)
 
-        # Interpolate yaw between waypoints
+        # Interpolate yaw, handling wrap-around.
         yaw_a = self.waypoints[current_seg][2]
         yaw_b = self.waypoints[current_seg + 1][2]
-        # Handle yaw wrap-around for interpolation
         yaw_diff = np.arctan2(np.sin(yaw_b - yaw_a), np.cos(yaw_b - yaw_a))
         look_ahead_yaw = yaw_a + t_final * yaw_diff
 
-        look_ahead_point = np.array([look_ahead_xy[0], look_ahead_xy[1], look_ahead_yaw], dtype=np.float32)
-
-        return look_ahead_point, False
+        return np.array([look_ahead_xy[0], look_ahead_xy[1], look_ahead_yaw], dtype=np.float32), False
 
     def get_command_pure_pursuit(self, current_pos, current_yaw, look_ahead_dist=0.5,
                                    target_speed=1.0, yaw_threshold=0.785, kp_yaw=2.0):
@@ -353,48 +324,48 @@ class WaypointTrajectoryFollower:
 
     
 # OLD Code that uses expected waypoint logic according to time to find position error 
-    def get_command_with_feedback_PD(self, t, dt, current_pos, current_yaw):
-        # Get CURRENT waypoint goal (not next timestep reference)
-        ref_now = self.get_reference(t)
+    # def get_command_with_feedback_PD(self, t, dt, current_pos, current_yaw):
+    #     # Get CURRENT waypoint goal (not next timestep reference)
+    #     ref_now = self.get_reference(t)
         
-        # Error to the GOAL (not to next interpolation point)
-        error_x_world = ref_now[0] - current_pos[0]
-        error_y_world = ref_now[1] - current_pos[1]
-        # Yaw control (same as before)
-        yaw_err = np.arctan2(np.sin(ref_now[2] - current_yaw), 
-                            np.cos(ref_now[2] - current_yaw))
-        # yaw_rate = np.clip(yaw_rate, -2.0, 2.0)
-        yaw_rate = 2.0 * yaw_err
+    #     # Error to the GOAL (not to next interpolation point)
+    #     error_x_world = ref_now[0] - current_pos[0]
+    #     error_y_world = ref_now[1] - current_pos[1]
+    #     # Yaw control (same as before)
+    #     yaw_err = np.arctan2(np.sin(ref_now[2] - current_yaw), 
+    #                         np.cos(ref_now[2] - current_yaw))
+    #     # yaw_rate = np.clip(yaw_rate, -2.0, 2.0)
+    #     yaw_rate = 2.0 * yaw_err
         
-        error = (error_x_world, error_y_world, yaw_err)
-        self.errors.append(error)
+    #     error = (error_x_world, error_y_world, yaw_err)
+    #     self.errors.append(error)
 
-        # Use proportional derivative control
-        kp = self.kp  # Tune this   
-        kd = self.kd
+    #     # Use proportional derivative control
+    #     kp = self.kp  # Tune this   
+    #     kd = self.kd
         
-        if len(self.errors) == 2:
-            e_rate_x = (self.errors[1][0] - self.errors[0][0]) / 1
-            e_rate_y = (self.errors[1][1] - self.errors[0][1]) / 1
-            e_rate_yaw = (self.errors[1][2] - self.errors[0][2]) / 1
+    #     if len(self.errors) == 2:
+    #         e_rate_x = (self.errors[1][0] - self.errors[0][0]) / 1
+    #         e_rate_y = (self.errors[1][1] - self.errors[0][1]) / 1
+    #         e_rate_yaw = (self.errors[1][2] - self.errors[0][2]) / 1
 
-            dx_world = kp * error_x_world + kd * e_rate_x
-            dy_world = kp * error_y_world + kd * e_rate_y
-            # yaw_rate = 2.0 * yaw_err + kd * e_rate_yaw  # Proportional derivative yaw control
-        else:
-            dx_world = kp * error_x_world
-            dy_world = kp * error_y_world
+    #         dx_world = kp * error_x_world + kd * e_rate_x
+    #         dy_world = kp * error_y_world + kd * e_rate_y
+    #         # yaw_rate = 2.0 * yaw_err + kd * e_rate_yaw  # Proportional derivative yaw control
+    #     else:
+    #         dx_world = kp * error_x_world
+    #         dy_world = kp * error_y_world
 
         
         
-        # Clip to training limits
-        # dx_world = np.clip(dx_world, -2.0, 3.0)
-        # dy_world = np.clip(dy_world, -1.5, 1.5)
+    #     # Clip to training limits
+    #     # dx_world = np.clip(dx_world, -2.0, 3.0)
+    #     # dy_world = np.clip(dy_world, -1.5, 1.5)
         
-        # Transform to base frame
-        dx_base = dx_world * np.cos(current_yaw) + dy_world * np.sin(current_yaw)
-        dy_base = -dx_world * np.sin(current_yaw) + dy_world * np.cos(current_yaw)
+    #     # Transform to base frame
+    #     dx_base = dx_world * np.cos(current_yaw) + dy_world * np.sin(current_yaw)
+    #     dy_base = -dx_world * np.sin(current_yaw) + dy_world * np.cos(current_yaw)
         
         
-        return error, np.array([dx_base, dy_base, yaw_rate], dtype=np.float32)
+    #     return error, np.array([dx_base, dy_base, yaw_rate], dtype=np.float32)
     

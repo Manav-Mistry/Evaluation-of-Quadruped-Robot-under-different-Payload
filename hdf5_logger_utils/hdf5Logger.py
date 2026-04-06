@@ -79,6 +79,7 @@ class LoggingSchema:
         schema.add_field('robot_lin_acc_b', (3,),  description='Robot IMU linear acceleration base frame', frame='sensor', units="m/s^2")
         schema.add_field('robot_ang_acc_b', (3,),  description='Robot IMU angular acceleration base frame', frame='sensor', units="m/s^2")
         schema.add_field('robot_joint_torques', (12, ), description='Robot joint torques', frame='sensor', units="N.m")
+        # schema.add_field('robot_joint_velocity', (12, ), description='Angular Velocity (rad/s)', frmae="sensor", units="rad/s")
         schema.add_field('sim_time', (1, ), description="current time stamp", frame='time', units="second (s)")
 
         return schema
